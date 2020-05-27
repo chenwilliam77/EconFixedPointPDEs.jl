@@ -9,28 +9,27 @@ Schorfheide.
 
 ### Fields
 
-#### Parameters and Steady-States
+#### Parameters
 * `parameters::Vector{AbstractParameter}`: Vector of all time-invariant model
   parameters.
 
 * `keys::OrderedDict{Symbol,Int}`: Maps human-readable names for all model
   parameters to their indices in `parameters`.
 
-#### Inputs to Measurement and Equilibrium Condition Equations
+#### Inputs to Measurement and Equilibrium Differential Equations
 
-The following fields are dictionaries that map human-readable names to row and
-column indices in the matrix representations of of the measurement equation and
-equilibrium conditions.
+The following fields are dictionaries that map human-readable names to indices.
 
-* `endogenous_states::OrderedDict{Symbol,Int}`: Maps each state to a column in
-  the measurement and equilibrium condition matrices.
+* `stategrid::OrderedDict{Symbol,Int}`: Maps each state variable to its dimension on a Cartesian grid
+
+* `endogenous_variables::OrderedDict{Symbol,Int}`: Maps endogenous variables
+    calculated during the solution of differential equations to an index
+
+* `endogenous_variables_augmented::OrderedDict{Symbol,Int}`: Maps endogenous variables
+    that can be calculated after solving the equilibrium differential equations
 
 * `exogenous_shocks::OrderedDict{Symbol,Int}`: Maps each shock to a column in
-  the measurement and equilibrium condition matrices.
-
-* `endogenous_states_augmented::OrderedDict{Symbol,Int}`: Maps lagged states to
-  their columns in the measurement and equilibrium condition equations. These
-  are added after `gensys` solves the model.
+  the measurement equation
 
 * `observables::OrderedDict{Symbol,Int}`: Maps each observable to a row in the
   model's measurement equation matrices.
@@ -75,10 +74,10 @@ mutable struct Li2020{T} <: AbstractNLCTModel{T}
     parameters::ParameterVector{T}                         # vector of all time-invariant model parameters
     keys::OrderedDict{Symbol,Int}                          # human-readable names for all the model
                                                            # parameters and steady-states
+    stategrid::OrderedDict{Symbol,Int}                     # dimension number of state variable
 
-    endogenous_states::OrderedDict{Symbol,Int}             # these fields used to create matrices in the
+    endogenous_variables::OrderedDict{Symbol,Int}
     exogenous_shocks::OrderedDict{Symbol,Int}              # measurement and equilibrium condition equations.
-    endogenous_states_augmented::OrderedDict{Symbol,Int}   #
     observables::OrderedDict{Symbol,Int}                   #
     pseudo_observables::OrderedDict{Symbol,Int}            #
 
@@ -105,14 +104,17 @@ Description:
 Initializes indices for all of `m`'s states, shocks, and observables.
 """
 function init_model_indices!(m::AnSchorfheide)
-    # Endogenous states
-    endogenous_states = collect([:w])
+    # Stategrid
+    stategrid = collect([:w])
 
     # Exogenous shocks
     exogenous_shocks = collect([:K_sh, :N_sh]) # capital shock K, liquidity shock N
 
-    # Additional states that can be calculated after a model's solution
-    endogenous_states_augmented = []
+    # Endogenous variables
+    endogenous_variables = collect([:p, :Q, :ψ])
+
+    # Endogenous variables augmented
+    endogenous_variables_augmented = collect([:p, :Q, :ψ])
 
     # Observables
     observables = keys(m.observable_mappings)
@@ -120,9 +122,10 @@ function init_model_indices!(m::AnSchorfheide)
     # Pseudo-observables
     pseudo_observables = keys(m.pseudo_observable_mappings)
 
-    for (i,k) in enumerate(endogenous_states);           m.endogenous_states[k]           = i end
+    for (i,k) in enumerate(stategrid);           m.stategrid[k]           = i end
     for (i,k) in enumerate(exogenous_shocks);            m.exogenous_shocks[k]            = i end
-    for (i,k) in enumerate(endogenous_states_augmented); m.endogenous_states_augmented[k] = i+length(endogenous_states) end
+    for (i,k) in enumerate(endogenous_variables); m.endogenous_variables[k] = i+length(endogenous_variables) end
+    for (i,k) in enumerate(endogenous_variables_augmented); m.endogenous_variables_augmented[k] = i+length(endogenous_variables_augmented) end
     for (i,k) in enumerate(observables);                 m.observables[k]                 = i end
     for (i,k) in enumerate(pseudo_observables);          m.pseudo_observables[k]          = i end
 end
@@ -141,7 +144,7 @@ function Li2020(subspec::String = "ss0";
     # initialize empty model
     m = Li2020{Float64}(
             # model parameters and steady state values
-            Vector{AbstractParameter{Float64}}(), Vector{Float64}(),
+            Vector{AbstractParameter{Float64}}(), Vector{Float64}(), OrderedDict{Symbol,Int}(),
 
             # model indices
             OrderedDict{Symbol,Int}(), OrderedDict{Symbol,Int}(), OrderedDict{Symbol,Int}(), OrderedDict{Symbol,Int}(),
@@ -185,8 +188,8 @@ Initializes the model's parameters.
 """
 function init_parameters(m::Li2020)
     # Productivity
-    m <= parameter(:aH, 0.15, (0., Inf), (0., 1e3), ModelConstructors.Untransformed(), Uniform(0., 1e3), fixed = false, "Banker's productivity")
-    m <= parameter(:aL, 0.15, (0., Inf), (0., 1e3), ModelConstructors.Untransformed(), Uniform(0., 1e3), fixed = false, "Household's productivity")
+    m <= parameter(:AH, 0.15, (0., Inf), (0., 1e3), ModelConstructors.Untransformed(), Uniform(0., 1e3), fixed = false, "Banker's productivity")
+    m <= parameter(:AL, 0.15, (0., Inf), (0., 1e3), ModelConstructors.Untransformed(), Uniform(0., 1e3), fixed = false, "Household's productivity")
 
     # Bank run and fire sales
     m <= parameter(:λ, 0.15, (0., 1.), (0., 1.), ModelConstructors.Untransformed(), Uniform(0., 1.), fixed = false, "Probability of liquidity shock")
@@ -226,11 +229,17 @@ creates the model's settings.
 """
 function model_settings!(m::Li2020)
 
+    # Investment functions
+    m <= Setting(:Φ, quadratic_investment, "Internal investment function")
+    m <= Setting(:∂Φ, derivative_quadratic_investment, "Derivative of internal investment function")
+
     # Numerical settings
     m <= Setting(:v₀, 3e-8, "Parameter for damping function")
     m <= Setting(:vp_function, x -> get_setting(m, :v₀) ./ x, "Dampling function to avoid corners")
     m <= Setting(:N, 100, "Grid size")
     m <= Setting(:max_iterations, 12, "Maximum number of fixed point iterations")
+    m <= Setting(:boundary_conditions, OrderedDict{Symbol, Vector{Float64}}(:p => [0.; 0.]), "Boundary conditions for differential equations.")
+    m <= Seting(:essentially_one, 0.999, "If ψ is larger than this value, then we consider it essentially one for some numerical purposes.")
 
     # Calibration targets
     m <= Setting(:avg_gdp, 0.145, "Average GDP")

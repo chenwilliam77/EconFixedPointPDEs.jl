@@ -6,3 +6,5 @@ the numerical methods and procedures specific to global solutions of
 nonlinear continuous-time models.
 """
 abstract type AbstractNLCTModel{T} <: AbstractModel{T} end
+
+get_type(AbstractNLCTModel{T}) where {T <: Real} = T
