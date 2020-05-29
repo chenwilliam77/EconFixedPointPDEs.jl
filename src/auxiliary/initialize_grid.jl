@@ -6,7 +6,7 @@ constructs a state grid (using the implementation in EconPDEs)
 using various methods, such as Chebyshev points.
 """
 function initialize_stategrid(method::Symbol, grid_info::OrderedDict{Symbol, Tuple{Float64, Float64, Int}};
-                         get_stategrid::Bool = true) where {S <: Real}
+                              get_stategrid::Bool = true) where {S <: Real}
     stategrid_init = OrderedDict{Symbol, Vector{S}}()
     if method == :uniform
         for (k, v) in grid_info

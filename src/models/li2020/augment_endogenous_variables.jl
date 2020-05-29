@@ -5,8 +5,9 @@
 ```
 augment_endogenous_variables_nojump(m::Li2020)
 ```
+
 calculates additional endogenous variables that can be computed
-as a function of the state variables.
+after solving the equilibrium system of differential equations.
 """
 function augment_endogenous_variables_nojump(m::Li2020, grid::NamedTuple, endo::OrderedDict{Symbol, Vector{S}}) where {S <: Real}
     # Unpack equilibrium endogenous variables and stategrid

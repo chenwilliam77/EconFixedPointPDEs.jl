@@ -1,9 +1,9 @@
 """
 ```
-AnSchorfheide{T} <: AbstractRepModel{T}
+Li2020{T} <: AbstractRepModel{T}
 ```
 
-The `AnSchorfheide` type defines the structure of the simple New Keynesian DSGE
+The `Li2020` type defines the structure of the simple New Keynesian DSGE
 model described in 'Bayesian Estimation of DSGE Models' by Sungbae An and Frank
 Schorfheide.
 
@@ -77,9 +77,9 @@ mutable struct Li2020{T} <: AbstractNLCTModel{T}
     stategrid::OrderedDict{Symbol,Int}                     # dimension number of state variable
 
     endogenous_variables::OrderedDict{Symbol,Int}
-    exogenous_shocks::OrderedDict{Symbol,Int}              # measurement and equilibrium condition equations.
-    observables::OrderedDict{Symbol,Int}                   #
-    pseudo_observables::OrderedDict{Symbol,Int}            #
+    exogenous_shocks::OrderedDict{Symbol,Int}
+    observables::OrderedDict{Symbol,Int}
+    pseudo_observables::OrderedDict{Symbol,Int}
 
     spec::String                                           # Model specification number (eg "m990")
     subspec::String                                        # Model subspecification (eg "ss0")
@@ -103,7 +103,7 @@ Arguments:
 Description:
 Initializes indices for all of `m`'s states, shocks, and observables.
 """
-function init_model_indices!(m::AnSchorfheide)
+function init_model_indices!(m::Li2020)
     # Stategrid
     stategrid = collect([:w])
 
@@ -113,21 +113,17 @@ function init_model_indices!(m::AnSchorfheide)
     # Endogenous variables
     endogenous_variables = collect([:p, :Q, :ψ])
 
-    # Endogenous variables augmented
-    endogenous_variables_augmented = collect([:p, :Q, :ψ])
-
     # Observables
     observables = keys(m.observable_mappings)
 
     # Pseudo-observables
     pseudo_observables = keys(m.pseudo_observable_mappings)
 
-    for (i,k) in enumerate(stategrid);           m.stategrid[k]           = i end
-    for (i,k) in enumerate(exogenous_shocks);            m.exogenous_shocks[k]            = i end
+    for (i,k) in enumerate(stategrid);            m.stategrid[k]            = i end
+    for (i,k) in enumerate(exogenous_shocks);     m.exogenous_shocks[k]     = i end
     for (i,k) in enumerate(endogenous_variables); m.endogenous_variables[k] = i+length(endogenous_variables) end
-    for (i,k) in enumerate(endogenous_variables_augmented); m.endogenous_variables_augmented[k] = i+length(endogenous_variables_augmented) end
-    for (i,k) in enumerate(observables);                 m.observables[k]                 = i end
-    for (i,k) in enumerate(pseudo_observables);          m.pseudo_observables[k]          = i end
+    for (i,k) in enumerate(observables);          m.observables[k]          = i end
+    for (i,k) in enumerate(pseudo_observables);   m.pseudo_observables[k]    = i end
 end
 
 function Li2020(subspec::String = "ss0";
@@ -208,10 +204,10 @@ function init_parameters(m::Li2020)
 
     # Macro parameters
     m <= parameter(:δ, 0.1, (0., 1.), (0., 1.), ModelConstructors.Untransformed(), Uniform(0., 1.), fixed = false, "Depreciation rate of capital")
-    m <= parameter(:ρ, 0.04, (0., Inf), (0., 1e3.), ModelConstructors.Untransformed(), Uniform(0., 1e3), fixed = false, "Discount rate")
-    m <= parameter(:σK, 0.033, (0., Inf), (0., 1e3.), ModelConstructors.Untransformed(), Uniform(0., 1e3), fixed = false,
+    m <= parameter(:ρ, 0.04, (0., Inf), (0., 1e3), ModelConstructors.Untransformed(), Uniform(0., 1e3), fixed = false, "Discount rate")
+    m <= parameter(:σK, 0.033, (0., Inf), (0., 1e3), ModelConstructors.Untransformed(), Uniform(0., 1e3), fixed = false,
                    "Volatility of capital shocks")
-    m <= parameter(:χ, 3., (0., Inf), (0., 1e3.), ModelConstructors.Untransformed(), Uniform(0., 1e3), fixed = false,
+    m <= parameter(:χ, 3., (0., Inf), (0., 1e3), ModelConstructors.Untransformed(), Uniform(0., 1e3), fixed = false,
                    "Adjustment cost of internal investment function")
 
     # Stationary distribution
@@ -237,8 +233,13 @@ function model_settings!(m::Li2020)
     m <= Setting(:v₀, 3e-8, "Parameter for damping function")
     m <= Setting(:vp_function, x -> get_setting(m, :v₀) ./ x, "Dampling function to avoid corners")
     m <= Setting(:N, 100, "Grid size")
-    m <= Setting(:max_iterations, 12, "Maximum number of fixed point iterations")
+    m <= Setting(:stategrid_method, :exponential, "Type of grid to construct for state variables")
+    m <= Setting(:stategrid_dimensions, OrderedDict{Symbol, Tuple{Float64, Float64}}(:w => (1e-3, 1., get_setting(m, :N))),
+                 "Information about the dimensions of the state space")
     m <= Setting(:boundary_conditions, OrderedDict{Symbol, Vector{Float64}}(:p => [0.; 0.]), "Boundary conditions for differential equations.")
+    m <= Setting(:max_iterations, 12, "Maximum number of fixed point iterations")
+    m <= Setting(:ode_reltol, 1e-4, "Relative tolerance for ODE integration")
+    m <= Setting(:ode_abstol, 1e-12, "Absolute tolerance for ODE integration")
     m <= Seting(:essentially_one, 0.999, "If ψ is larger than this value, then we consider it essentially one for some numerical purposes.")
 
     # Calibration targets

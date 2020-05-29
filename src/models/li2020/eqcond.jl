@@ -2,13 +2,15 @@
 ```
 eqcond_nojump(m::Li2020)
 ```
+
 constructs the ODE characterizing equilibrium
 with no jumps.
 """
 function eqcond_nojump(m::Li2020)
     Φ  = get_setting(m, :Φ)
     ∂Φ = get_setting(m, :∂Φ)
-    # pass in params as a labeled array
+
+    # θ_in = parameters_to_named_tuple([m[:ρ], m[:AL], m[:AH], m[:σK]])
     f1 = function _ode_nojump_li2020(dp, p, θ, w)
         ψ = max.(min((Φ(p) + θ[:ρ] * p - θ[:AL]) / (θ[:AH] - θ[:AL]), 1), 0)
         xK = (ψ / w)
