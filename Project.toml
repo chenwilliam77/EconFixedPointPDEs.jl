@@ -1,5 +1,6 @@
 [deps]
 BenchmarkTools = "6e4b80f9-dd63-53aa-95a3-0cdb28fa8baf"
+DiffEqBase = "2b5f629d-d688-5b77-993f-72d75c75574e"
 DiffEqOperators = "9fdde737-9c7f-55bf-ade8-46b3f136cc48"
 DifferentialEquations = "0c46a032-eb83-5123-abaf-570d42b7fbaa"
 EconPDEs = "a3315474-fad9-5060-8696-cee5f38a87b7"

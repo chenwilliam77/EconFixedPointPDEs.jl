@@ -5,9 +5,9 @@ initialize_stategrid(method::Symbol, dims::Vector{Int})
 constructs a state grid (using the implementation in EconPDEs)
 using various methods, such as Chebyshev points.
 """
-function initialize_stategrid(method::Symbol, grid_info::OrderedDict{Symbol, Tuple{Float64, Float64, Int}};
-                              get_stategrid::Bool = true) where {S <: Real}
-    stategrid_init = OrderedDict{Symbol, Vector{S}}()
+function initialize_stategrid(method::Symbol, grid_info::OrderedDict{Symbol, Tuple{T, T, Int}};
+                              get_stategrid::Bool = true) where {T <: Real}
+    stategrid_init = OrderedDict{Symbol, Vector{T}}()
     if method == :uniform
         for (k, v) in grid_info
             stategrid_init[k] = range(v[1], stop = v[2], length = v[3])

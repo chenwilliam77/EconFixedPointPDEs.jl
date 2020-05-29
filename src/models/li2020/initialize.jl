@@ -1,10 +1,10 @@
 """
 ```
-initialize(m::Li2020)
+initialize!(m::Li2020)
 ```
 sets up all initial conditions for solving Li2020, such as the grid and boundary conditions.
 """
-function intiailize(m::Li2020)
+function initialize!(m::Li2020)
 
     # Create StateGrid object
     stategrid_init = initialize_stategrid(get_setting(m, :stategrid_method), get_setting(m, :stategrid_dimensions),
@@ -21,9 +21,13 @@ function intiailize(m::Li2020)
     end
 
     # Establish boundary conditions
-    p₀ = find_zero(p -> get_setting(m, :Φ)(p) + m[:ρ] * p - m[:AL], 1.) # bisection search for p(0) and p(1)
-    p₁ = find_zero(p -> get_setting(m, :Φ)(p) + m[:ρ] * p - m[:AH], 1.)
-    set_boundary_conditions!(m, :p, [p₀.zero, p₁.zero])
+    p₀ = find_zero(p -> get_setting(m, :Φ)(p, m[:χ].value, m[:δ].value) + m[:ρ] * p - m[:AL], 1.) # bisection search for p(0) and p(1)
+    p₁ = find_zero(p -> get_setting(m, :Φ)(p, m[:χ].value, m[:δ].value) + m[:ρ] * p - m[:AH], 1.)
+    ∂p∂w0 = (m[:AH] - m[:AL]) / (get_setting(m, :∂Φ)(p₀, m[:χ].value) + m[:ρ]) *
+                              ((m[:AH] - m[:AL]) / (p₀ * m[:σK])^2 * p₀ + 1)
+    ∂p∂wN = 0.
+    set_boundary_conditions!(m, :p, [p₀, p₁])
+    set_boundary_conditions!(m, :∂p∂w, [∂p∂w0, ∂p∂wN])
 
     return stategrid, endo
 end

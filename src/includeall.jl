@@ -2,6 +2,8 @@ using DifferentialEquations, LabelledArrays, ModelConstructors, NLsolve, Ordered
 using Random, Roots
 using EconPDEs: StateGrid
 
+import DiffEqBase: initialize!
+
 # src directory
 include("abstract_NLCT_model.jl")
 include("util.jl")

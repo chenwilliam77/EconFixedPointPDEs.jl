@@ -140,7 +140,7 @@ function Li2020(subspec::String = "ss0";
     # initialize empty model
     m = Li2020{Float64}(
             # model parameters and steady state values
-            Vector{AbstractParameter{Float64}}(), Vector{Float64}(), OrderedDict{Symbol,Int}(),
+            Vector{AbstractParameter{Float64}}(), OrderedDict{Symbol,Int}(),
 
             # model indices
             OrderedDict{Symbol,Int}(), OrderedDict{Symbol,Int}(), OrderedDict{Symbol,Int}(), OrderedDict{Symbol,Int}(),
@@ -182,37 +182,42 @@ init_parameters!(m::Li2020)
 ```
 Initializes the model's parameters.
 """
-function init_parameters(m::Li2020)
+function init_parameters!(m::Li2020)
     # Productivity
-    m <= parameter(:AH, 0.15, (0., Inf), (0., 1e3), ModelConstructors.Untransformed(), Uniform(0., 1e3), fixed = false, "Banker's productivity")
-    m <= parameter(:AL, 0.15, (0., Inf), (0., 1e3), ModelConstructors.Untransformed(), Uniform(0., 1e3), fixed = false, "Household's productivity")
+    m <= parameter(:AH, 0.15, (0., Inf), (0., 1e3), ModelConstructors.Untransformed(),
+                   Uniform(0., 1e3), fixed = false, description = "Banker's productivity")
+    m <= parameter(:AL, 0.125, (0., Inf), (0., 1e3), ModelConstructors.Untransformed(), Uniform(0., 1e3),
+                   fixed = false, description = "Household's productivity")
 
     # Bank run and fire sales
-    m <= parameter(:λ, 0.15, (0., 1.), (0., 1.), ModelConstructors.Untransformed(), Uniform(0., 1.), fixed = false, "Probability of liquidity shock")
+    m <= parameter(:λ, 0.15, (0., 1.), (0., 1.), ModelConstructors.Untransformed(), Uniform(0., 1.),
+                   fixed = false, description = "Probability of liquidity shock")
     m <= parameter(:β, 0.15, (0., 1.), (0., 1.), ModelConstructors.Untransformed(), Uniform(0., 1.), fixed = false,
-                   "Probability of running on a deposit account")
+                   description = "Probability of running on a deposit account")
     m <= parameter(:α, 0.15, (0., 1.), (0., 1.), ModelConstructors.Untransformed(), Uniform(0., 1.), fixed = false,
-                   "Illiquidity discount on capital during fire sale")
+                   description = "Illiquidity discount on capital during fire sale")
     m <= parameter(:ϵ, 1e-3, (0., 1.), (0., 1.), ModelConstructors.Untransformed(), Uniform(0., 1.), fixed = false,
-                   "Fraction of remaining wealth for bankers after bankruptcy")
+                   description = "Fraction of remaining wealth for bankers after bankruptcy")
     m <= parameter(:θ, 1e-5, (0., 1.), (0., 1.), ModelConstructors.Untransformed(), Uniform(0., 1.), fixed = false,
-                   "Probability of non-zero exposure to liquidity shock")
+                   description = "Probability of non-zero exposure to liquidity shock")
 
     # Shadow value of liquidity
     m <= parameter(:π, 0.19, (0., 1.), (0., 1.), ModelConstructors.Untransformed(), Uniform(0., 1.), fixed = false,
-                   "Illiquidity discount on illiquid safe asset")
+                   description = "Illiquidity discount on illiquid safe asset")
 
     # Macro parameters
-    m <= parameter(:δ, 0.1, (0., 1.), (0., 1.), ModelConstructors.Untransformed(), Uniform(0., 1.), fixed = false, "Depreciation rate of capital")
-    m <= parameter(:ρ, 0.04, (0., Inf), (0., 1e3), ModelConstructors.Untransformed(), Uniform(0., 1e3), fixed = false, "Discount rate")
+    m <= parameter(:δ, 0.1, (0., 1.), (0., 1.), ModelConstructors.Untransformed(), Uniform(0., 1.),
+                   fixed = false, description = "Depreciation rate of capital")
+    m <= parameter(:ρ, 0.04, (0., Inf), (0., 1e3), ModelConstructors.Untransformed(), Uniform(0., 1e3),
+                   fixed = false, description = "Discount rate")
     m <= parameter(:σK, 0.033, (0., Inf), (0., 1e3), ModelConstructors.Untransformed(), Uniform(0., 1e3), fixed = false,
-                   "Volatility of capital shocks")
+                   description = "Volatility of capital shocks")
     m <= parameter(:χ, 3., (0., Inf), (0., 1e3), ModelConstructors.Untransformed(), Uniform(0., 1e3), fixed = false,
-                   "Adjustment cost of internal investment function")
+                   description = "Adjustment cost of internal investment function")
 
     # Stationary distribution
     m <= parameter(:η, 0.05, (0., 1.), (0., 1.), ModelConstructors.Untransformed(), Uniform(0., 1.), fixed = false,
-                   "Rate of retirement for bankers")
+                   description = "Rate of retirement for bankers")
 end
 
 
@@ -234,13 +239,18 @@ function model_settings!(m::Li2020)
     m <= Setting(:vp_function, x -> get_setting(m, :v₀) ./ x, "Dampling function to avoid corners")
     m <= Setting(:N, 100, "Grid size")
     m <= Setting(:stategrid_method, :exponential, "Type of grid to construct for state variables")
-    m <= Setting(:stategrid_dimensions, OrderedDict{Symbol, Tuple{Float64, Float64}}(:w => (1e-3, 1., get_setting(m, :N))),
+    m <= Setting(:stategrid_dimensions, OrderedDict{Symbol, Tuple{Float64, Float64, Int}}(:w => (1e-3, 1., get_setting(m, :N))),
                  "Information about the dimensions of the state space")
-    m <= Setting(:boundary_conditions, OrderedDict{Symbol, Vector{Float64}}(:p => [0.; 0.]), "Boundary conditions for differential equations.")
+    m <= Setting(:boundary_conditions, OrderedDict{Symbol, Vector{Float64}}(:p => [0.; 0.]),
+                 "Boundary conditions for differential equations.")
     m <= Setting(:max_iterations, 12, "Maximum number of fixed point iterations")
     m <= Setting(:ode_reltol, 1e-4, "Relative tolerance for ODE integration")
     m <= Setting(:ode_abstol, 1e-12, "Absolute tolerance for ODE integration")
-    m <= Seting(:essentially_one, 0.999, "If ψ is larger than this value, then we consider it essentially one for some numerical purposes.")
+    m <= Setting(:essentially_one, 0.999,
+                "If ψ is larger than this value, then we consider it essentially one for some numerical purposes.")
+
+    # Other settings for initialization
+    m <= Setting(:nojump_parameters, [:ρ, :AH, :AL, :σK, :χ, :δ], "Keys of parameters used when solving the no-jump equilibrium.")
 
     # Calibration targets
     m <= Setting(:avg_gdp, 0.145, "Average GDP")
