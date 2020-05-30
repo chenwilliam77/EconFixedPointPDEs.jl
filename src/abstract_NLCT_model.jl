@@ -9,6 +9,11 @@ nonlinear continuous-time models.
 """
 abstract type AbstractNLCTModel{T} <: AbstractModel{T} end
 
+function Base.show(io::IO, m::AbstractNLCTModel)
+    @printf io "Model \n"
+    @printf io "description:\n %s\n"          description(m)
+end
+
 get_type(m::AbstractNLCTModel{T}) where {T <: Real} = T
 
 ### Auxiliary access functions for typical things in an AbstractNLCTModel

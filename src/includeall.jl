@@ -1,4 +1,4 @@
-using DifferentialEquations, LabelledArrays, ModelConstructors, NLsolve, OrderedCollections
+using DifferentialEquations, LabelledArrays, ModelConstructors, NLsolve, OrderedCollections, Printf
 using Random, Roots
 using EconPDEs: StateGrid
 

@@ -190,11 +190,11 @@ function init_parameters!(m::Li2020)
                    fixed = false, description = "Household's productivity")
 
     # Bank run and fire sales
-    m <= parameter(:λ, 0.15, (0., 1.), (0., 1.), ModelConstructors.Untransformed(), Uniform(0., 1.),
+    m <= parameter(:λ, 0.025, (0., 1.), (0., 1.), ModelConstructors.Untransformed(), Uniform(0., 1.),
                    fixed = false, description = "Probability of liquidity shock")
-    m <= parameter(:β, 0.15, (0., 1.), (0., 1.), ModelConstructors.Untransformed(), Uniform(0., 1.), fixed = false,
+    m <= parameter(:β, 0.25, (0., 1.), (0., 1.), ModelConstructors.Untransformed(), Uniform(0., 1.), fixed = false,
                    description = "Probability of running on a deposit account")
-    m <= parameter(:α, 0.15, (0., 1.), (0., 1.), ModelConstructors.Untransformed(), Uniform(0., 1.), fixed = false,
+    m <= parameter(:α, 0.21, (0., 1.), (0., 1.), ModelConstructors.Untransformed(), Uniform(0., 1.), fixed = false,
                    description = "Illiquidity discount on capital during fire sale")
     m <= parameter(:ϵ, 1e-3, (0., 1.), (0., 1.), ModelConstructors.Untransformed(), Uniform(0., 1.), fixed = false,
                    description = "Fraction of remaining wealth for bankers after bankruptcy")
@@ -232,11 +232,12 @@ function model_settings!(m::Li2020)
 
     # Investment functions
     m <= Setting(:Φ, quadratic_investment, "Internal investment function")
-    m <= Setting(:∂Φ, derivative_quadratic_investment, "Derivative of internal investment function")
+    m <= Setting(:∂Φ, derivative_quadratic_investment_li2020, "Derivative of internal investment function")
 
     # Numerical settings
     m <= Setting(:v₀, 3e-8, "Parameter for damping function")
     m <= Setting(:vp_function, x -> get_setting(m, :v₀) ./ x, "Dampling function to avoid corners")
+    m <= Setting(:p₀_perturb, 1e-14, "Perturbation of boundary condition for q at w = 0")
     m <= Setting(:N, 100, "Grid size")
     m <= Setting(:stategrid_method, :exponential, "Type of grid to construct for state variables")
     m <= Setting(:stategrid_dimensions, OrderedDict{Symbol, Tuple{Float64, Float64, Int}}(:w => (1e-3, 1., get_setting(m, :N))),
@@ -260,5 +261,5 @@ function model_settings!(m::Li2020)
     m <= Setting(:dt, 1. / 12., "Simulation interval as a fraction of a 1 year")
 
     # ODE integrator
-    m <= Setting(:ode_integrator, Tsit5(), "Numerical ODE integrator for no-jump solution")
+    m <= Setting(:ode_integrator, DP5(), "Numerical ODE integrator for no-jump solution") # DP5 is Matlab's ode45
 end

@@ -23,6 +23,7 @@ function initialize!(m::Li2020)
     # Establish boundary conditions
     p₀ = find_zero(p -> get_setting(m, :Φ)(p, m[:χ].value, m[:δ].value) + m[:ρ] * p - m[:AL], 1.) # bisection search for p(0) and p(1)
     p₁ = find_zero(p -> get_setting(m, :Φ)(p, m[:χ].value, m[:δ].value) + m[:ρ] * p - m[:AH], 1.)
+    p₀ *= 1 + get_setting(m, :p₀_perturb)
     ∂p∂w0 = (m[:AH] - m[:AL]) / (get_setting(m, :∂Φ)(p₀, m[:χ].value) + m[:ρ]) *
                               ((m[:AH] - m[:AL]) / (p₀ * m[:σK])^2 * p₀ + 1)
     ∂p∂wN = 0.
