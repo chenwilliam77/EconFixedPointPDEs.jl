@@ -76,6 +76,7 @@ mutable struct Li2020{T} <: AbstractNLCTModel{T}
                                                            # parameters and steady-states
     stategrid::OrderedDict{Symbol,Int}                     # dimension number of state variable
 
+    differential_variables::OrderedDict{Symbol,Int}
     endogenous_variables::OrderedDict{Symbol,Int}
     exogenous_shocks::OrderedDict{Symbol,Int}
     observables::OrderedDict{Symbol,Int}
@@ -110,8 +111,11 @@ function init_model_indices!(m::Li2020)
     # Exogenous shocks
     exogenous_shocks = collect([:K_sh, :N_sh]) # capital shock K, liquidity shock N
 
+    # Variables for differential equations
+    differential_variables = collect([:p])
+
     # Endogenous variables
-    endogenous_variables = collect([:p, :Q, :ψ])
+    endogenous_variables = collect([:Q, :ψ, :xK, :yK, :xg, :yg, :σp, :σ, :σh])
 
     # Observables
     observables = keys(m.observable_mappings)
@@ -119,11 +123,12 @@ function init_model_indices!(m::Li2020)
     # Pseudo-observables
     pseudo_observables = keys(m.pseudo_observable_mappings)
 
-    for (i,k) in enumerate(stategrid);            m.stategrid[k]            = i end
-    for (i,k) in enumerate(exogenous_shocks);     m.exogenous_shocks[k]     = i end
-    for (i,k) in enumerate(endogenous_variables); m.endogenous_variables[k] = i+length(endogenous_variables) end
-    for (i,k) in enumerate(observables);          m.observables[k]          = i end
-    for (i,k) in enumerate(pseudo_observables);   m.pseudo_observables[k]    = i end
+    for (i,k) in enumerate(stategrid);              m.stategrid[k]              = i end
+    for (i,k) in enumerate(exogenous_shocks);       m.exogenous_shocks[k]       = i end
+    for (i,k) in enumerate(endogenous_variables);   m.endogenous_variables[k]   = i end
+    for (i,k) in enumerate(differential_variables); m.differential_variables[k] = i end
+    for (i,k) in enumerate(observables);            m.observables[k]            = i end
+    for (i,k) in enumerate(pseudo_observables);     m.pseudo_observables[k]     = i end
 end
 
 function Li2020(subspec::String = "ss0";
@@ -144,7 +149,7 @@ function Li2020(subspec::String = "ss0";
 
             # model indices
             OrderedDict{Symbol,Int}(), OrderedDict{Symbol,Int}(), OrderedDict{Symbol,Int}(), OrderedDict{Symbol,Int}(),
-            OrderedDict{Symbol,Int}(),
+            OrderedDict{Symbol,Int}(), OrderedDict{Symbol,Int}(),
 
             spec,
             subspec,
@@ -242,6 +247,7 @@ function model_settings!(m::Li2020)
     m <= Setting(:stategrid_method, :exponential, "Type of grid to construct for state variables")
     m <= Setting(:stategrid_dimensions, OrderedDict{Symbol, Tuple{Float64, Float64, Int}}(:w => (1e-3, 1., get_setting(m, :N))),
                  "Information about the dimensions of the state space")
+    m <= Setting(:stategrid_splice, 0.2, "Li (2020) constructs the grid in two parts. This value is where the first half stops.")
     m <= Setting(:boundary_conditions, OrderedDict{Symbol, Vector{Float64}}(:p => [0.; 0.]),
                  "Boundary conditions for differential equations.")
     m <= Setting(:max_iterations, 12, "Maximum number of fixed point iterations")
@@ -256,6 +262,7 @@ function model_settings!(m::Li2020)
     # Calibration targets
     m <= Setting(:avg_gdp, 0.145, "Average GDP")
     m <= Setting(:liq_gdp_ratio, 0.39, "Average Liquidity/GDP ratio in the data")
+    m <= Setting(:gov_bond_gdp_level, 0.3, "Ratio of Government Bonds to GDP")
 
     # Simulation settings
     m <= Setting(:dt, 1. / 12., "Simulation interval as a fraction of a 1 year")

@@ -6,17 +6,27 @@ sets up all initial conditions for solving Li2020, such as the grid and boundary
 """
 function initialize!(m::Li2020)
 
-    # Create StateGrid object
-    stategrid_init = initialize_stategrid(get_setting(m, :stategrid_method), get_setting(m, :stategrid_dimensions),
-                                     get_stategrid = false)
-    stategrid_init[:w] = vcat(0., stategrid_init[:w])
-    stategrid = StateGrid(stategrid_init)
-
-    # Construct dictionary of endogenous variables
-    endo = OrderedDict{Symbol, Vector{get_type(m)}}()
     model_type = get_type(m)
     N          = get_setting(m, :N)
-    for k in keys(m.endogenous_variables)
+
+    # Create StateGrid object
+    stategrid_init = OrderedDict{Symbol, Vector{model_type}}()
+    gen_grid(l, u, n) = exp.(range(log(l), stop = log(u), length = n))
+    stategrid_init[:w] = vcat(0., gen_grid(get_setting(m, :stategrid_dimensions)[:w][1],
+                                           get_setting(m, :stategrid_splice), Int(round(N / 2))),
+                              gen_grid(get_setting(m, :stategrid_splice) + .1, get_setting(m, :stategrid_dimensions)[:w][2],
+                              Int(N - round(N / 2) - 1)))
+    stategrid = StateGrid(stategrid_init)
+
+    # Construct dictionary of differential variables
+    diffvar = OrderedDict{Symbol, Vector{model_type}}()
+    for k in keys(get_differential_variables(m))
+        diffvar[k] = Vector{model_type}(undef, N)
+    end
+
+    # Construct dictionary of endogenous variables
+    endo = OrderedDict{Symbol, Vector{model_type}}()
+    for k in keys(get_endogenous_variables(m))
         endo[k] = Vector{model_type}(undef, N)
     end
 
@@ -30,5 +40,5 @@ function initialize!(m::Li2020)
     set_boundary_conditions!(m, :p, [p₀, p₁])
     set_boundary_conditions!(m, :∂p∂w, [∂p∂w0, ∂p∂wN])
 
-    return stategrid, endo
+    return stategrid, diffvar, endo
 end

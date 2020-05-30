@@ -17,9 +17,13 @@ m = Li2020("ss0")
 end
 
 @testset "Variables, Shocks, Parameters, and Settings" begin
-    @test haskey(m.stategrid, :w)
+    @test haskey(get_stategrid(m), :w)
 
-    for k in [:p, :Q, :ψ]
+    for k in [:p]
+        @test haskey(get_differential_variables(m), k)
+    end
+
+    for k in [:Q, :ψ]
         @test haskey(get_endogenous_variables(m), k)
     end
 

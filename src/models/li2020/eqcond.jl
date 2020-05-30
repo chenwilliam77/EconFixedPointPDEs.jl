@@ -17,19 +17,20 @@ function eqcond_nojump(m::Li2020)
         elseif w == 1.
             ∂p∂w = ∂p∂wN
         else
-            ψ = max(min((Φ(p, θ[:χ], θ[:δ]) + θ[:ρ] * p - θ[:AL]) / (θ[:AH] - θ[:AL]), 1), 0)
+            ψ = max(min((Φ(p, θ[:χ], θ[:δ]) + θ[:ρ] * p - θ[:AL]) / (θ[:AH] - θ[:AL]), 1.), 0.)
             xK = (ψ / w)
-            yK = (1 - ψ) / (1 - w)
+            yK = (1. - ψ) / (1. - w)
             σp = sqrt((θ[:AH] - θ[:AL]) / (p * (xK - yK))) - θ[:σK]
             σ  = xK * (θ[:σK] + σp)
             σh = yK * (θ[:σK] + σp)
 
-            ∂p∂w = max.(0., σp ./ (w .* (1 - w) .* (xK - yK) .* (θ[:σK] + σp)))
+            ∂p∂w = max(0., σp ./ (w .* (1. - w) .* (xK - yK) .* (θ[:σK] + σp)))
         end
 
         return ∂p∂w
     end
 
+    # Terminal condition
     ode_condition(p, w, integrator) = p - get_setting(m, :boundary_conditions)[:p][2]
     ode_affect!(integrator) = terminate!(integrator)
     cb = ContinuousCallback(ode_condition, ode_affect!)

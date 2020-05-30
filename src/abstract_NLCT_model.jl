@@ -17,7 +17,9 @@ end
 get_type(m::AbstractNLCTModel{T}) where {T <: Real} = T
 
 ### Auxiliary access functions for typical things in an AbstractNLCTModel
+get_keys(m::AbstractNLCTModel) = m.keys
 get_settings(m::AbstractNLCTModel) = m.settings
+get_differential_variables(m::AbstractNLCTModel) = m.differential_variables
 get_endogenous_variables(m::AbstractNLCTModel) = m.endogenous_variables
 get_exogenous_shocks(m::AbstractNLCTModel) = m.exogenous_shocks
 get_observables(m::AbstractNLCTModel) = m.observables
@@ -26,9 +28,11 @@ get_parameters(m::AbstractNLCTModel) = m.parameters
 get_pseudo_observables(m::AbstractNLCTModel) = m.pseudo_observables
 get_test_settings(m::AbstractNLCTModel) = m.test_settings
 
+n_differential_variables(m::AbstractNLCTModel) = length(get_differential_variables(m))
 n_endogenous_variables(m::AbstractNLCTModel) = length(get_endogenous_variables(m))
 n_exogenous_shocks(m::AbstractNLCTModel) = length(get_exogenous_shocks(m))
 
+boundary_conditions(m::AbstractNLCTModel) = get_setting(m, :boundary_conditions)
 
 """
 ```
