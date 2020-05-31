@@ -14,7 +14,7 @@ function Base.show(io::IO, m::AbstractNLCTModel)
     @printf io "description:\n %s\n"          description(m)
 end
 
-get_type(m::AbstractNLCTModel{T}) where {T <: Real} = T
+eltype(m::AbstractNLCTModel{T}) where {T <: Real} = T
 
 ### Auxiliary access functions for typical things in an AbstractNLCTModel
 get_keys(m::AbstractNLCTModel) = m.keys

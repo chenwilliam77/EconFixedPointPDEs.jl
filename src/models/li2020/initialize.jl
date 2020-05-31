@@ -6,7 +6,7 @@ sets up all initial conditions for solving Li2020, such as the grid and boundary
 """
 function initialize!(m::Li2020)
 
-    model_type = get_type(m)
+    model_type = eltype(m)
     N          = get_setting(m, :N)
 
     # Create StateGrid object

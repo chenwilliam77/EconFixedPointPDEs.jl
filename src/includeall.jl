@@ -1,7 +1,8 @@
 using Dierckx, DifferentialEquations, FastGaussQuadrature, ForwardDiff, Interpolations
-using ModelConstructors, NLsolve, OrderedCollections, Printf, Random, Roots
+using ModelConstructors, NLsolve, OrderedCollections, Printf, Random, Roots, VectorizedRoutines.Matlab
 using EconPDEs: StateGrid
 
+import Base: getindex
 import DiffEqBase: initialize!, solve
 
 # src directory
