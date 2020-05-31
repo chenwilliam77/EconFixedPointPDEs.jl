@@ -239,15 +239,14 @@ function model_settings!(m::Li2020)
     m <= Setting(:Φ, quadratic_investment, "Internal investment function")
     m <= Setting(:∂Φ, derivative_quadratic_investment_li2020, "Derivative of internal investment function")
 
-    # Numerical settings
-    m <= Setting(:v₀, 3e-8, "Parameter for damping function")
-    m <= Setting(:vp_function, x -> get_setting(m, :v₀) ./ x, "Dampling function to avoid corners")
-    m <= Setting(:p₀_perturb, 1e-14, "Perturbation of boundary condition for q at w = 0")
+    # Numerical settings for grid
     m <= Setting(:N, 100, "Grid size")
     m <= Setting(:stategrid_method, :exponential, "Type of grid to construct for state variables")
     m <= Setting(:stategrid_dimensions, OrderedDict{Symbol, Tuple{Float64, Float64, Int}}(:w => (1e-3, 1., get_setting(m, :N))),
                  "Information about the dimensions of the state space")
     m <= Setting(:stategrid_splice, 0.2, "Li (2020) constructs the grid in two parts. This value is where the first half stops.")
+
+    # Numerical settings for no jump equilibrium
     m <= Setting(:boundary_conditions, OrderedDict{Symbol, Vector{Float64}}(:p => [0.; 0.]),
                  "Boundary conditions for differential equations.")
     m <= Setting(:max_iterations, 12, "Maximum number of fixed point iterations")
@@ -255,6 +254,15 @@ function model_settings!(m::Li2020)
     m <= Setting(:ode_abstol, 1e-12, "Absolute tolerance for ODE integration")
     m <= Setting(:essentially_one, 0.999,
                 "If ψ is larger than this value, then we consider it essentially one for some numerical purposes.")
+    m <= Setting(:ode_integrator, DP5(), "Numerical ODE integrator for no-jump solution") # DP5 is Matlab's ode45
+
+    # Numerical settings for functional iteration
+    m <= Setting(:v₀, 3e-8, "Parameter for damping function")
+    m <= Setting(:damping_function, x -> get_setting(m, :v₀) ./ x, "Dampling function to avoid corners")
+    m <= Setting(:p₀_perturb, 1e-14, "Perturbation of boundary condition for q at w = 0")
+    m <= Setting(:κp_grid, Vector{Float64}(undef, 0), "Vector of guesses for κp used during iteration for new κp and xK within each functional loop")
+    m <= Setting(:p_fitted_interpolant, Gridded(Linear()), "Interpolant method for fitted p.")
+    m <= Setting(:xK_interpolant, Gridded(Linear()), "Interpolant method for xK after solving xK for each guess of κp.")
 
     # Other settings for initialization
     m <= Setting(:nojump_parameters, [:ρ, :AH, :AL, :σK, :χ, :δ], "Keys of parameters used when solving the no-jump equilibrium.")
@@ -267,6 +275,4 @@ function model_settings!(m::Li2020)
     # Simulation settings
     m <= Setting(:dt, 1. / 12., "Simulation interval as a fraction of a 1 year")
 
-    # ODE integrator
-    m <= Setting(:ode_integrator, DP5(), "Numerical ODE integrator for no-jump solution") # DP5 is Matlab's ode45
 end

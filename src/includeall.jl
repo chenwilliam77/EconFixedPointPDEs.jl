@@ -1,5 +1,5 @@
-using DifferentialEquations, LabelledArrays, ModelConstructors, NLsolve, OrderedCollections, Printf
-using Random, Roots
+using Dierckx, DifferentialEquations, FastGaussQuadrature, ForwardDiff, Interpolations
+using ModelConstructors, NLsolve, OrderedCollections, Printf, Random, Roots
 using EconPDEs: StateGrid
 
 import DiffEqBase: initialize!, solve

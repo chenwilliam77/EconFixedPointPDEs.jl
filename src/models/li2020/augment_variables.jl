@@ -7,8 +7,8 @@ augment_variables_nojump!(m::Li2020, stategrid::StateGrid, ode_f::Function, diff
 calculates derivatives and additional endogenous variables that can be computed
 after solving the equilibrium system of differential equations.
 """
-function augment_variables_nojump!(m::Li2020, stategrid::StateGrid, ode_f::Function, diffvar::OrderedDict{Symbol, Vector{S}},
-                                   endo::OrderedDict{Symbol, Vector{S}}, odesol::ODESolution) where {S <: Real}
+function augment_variables_nojump!(m::Li2020, stategrid::StateGrid, ode_f::Function, diffvar::OrderedDict{Symbol, AbstractVector{S}},
+                                   endo::OrderedDict{Symbol, AbstractVector{S}}, odesol::ODESolution) where {S <: Real}
 
     # Unpack equilibrium endogenous variables and stategrid
     p    = diffvar[:p]
