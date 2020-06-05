@@ -14,7 +14,7 @@ end
 bin_sort(x, bins)
 ```
 
-returns a BitArray indicating in which bin each value of x belongs. This function
+returns a vector of Ints indicating in which bin each value of x belongs. This function
 assumes that x is in an ascending order.
 """
 function bin_sort(x::AbstractVector{S}, bins::AbstractVector{S}) where {S <: Real}

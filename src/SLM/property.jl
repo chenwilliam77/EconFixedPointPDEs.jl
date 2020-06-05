@@ -421,7 +421,7 @@ end
 ```
 """
 function construct_curvature_matrix(curvature_settings::Vector{NamedTuple{(:concave_up, :range), Tuple{Bool, Vector{T}}}},
-                                    nc::Int, nk::Int, dknots::AbstractVector{T}, total_intervals::Int,
+                                    nc::Int, nk::Int, knots::AbstractVector{T}, dknots::AbstractVector{T},
                                     Mineq::AbstractMatrix{T}, rhsineq::AbstractVector{T}) where {T <: Real}
     L = length(curvature_settings)
     M = zeros(T, 0, nc)
@@ -433,8 +433,8 @@ function construct_curvature_matrix(curvature_settings::Vector{NamedTuple{(:conc
             if curvature_settings[i][:concave_up]
                 for j in 1:(nk - 1)
                     n += 1
-                    M[n, j]     = 6. / dknots[j]^2
-                    M[n, j + 1] = -6. / dknots[j]^2
+                    M[n, j]     = 6. / dknots[j] ^ 2
+                    M[n, j + 1] = -6. / dknots[j] ^ 2
 
                     M[n, nk + j]     = 4. / dknots[j]
                     M[n, nk + j + 1] = 2. / dknots[j]
@@ -442,8 +442,8 @@ function construct_curvature_matrix(curvature_settings::Vector{NamedTuple{(:conc
             else
                 for j in 1:(nk - 1)
                     n += 1
-                    M[n, j]     = -6. / dknots[j]^2
-                    M[n, j + 1] = 6. / dknots[j]^2
+                    M[n, j]     = -6. / dknots[j] ^ 2
+                    M[n, j + 1] = 6. / dknots[j] ^ 2
 
                     M[n, nk + j]     = -4. / dknots[j]
                     M[n, nk + j + 1] = -2. / dknots[j]
@@ -467,6 +467,57 @@ function construct_curvature_matrix(curvature_settings::Vector{NamedTuple{(:conc
         else
             # Only enforce curvature between the given range limits, knot by knot first
             # and then at the endpoints of the range
+            curv_setting = curvature_settings[i]
+            if curv_setting[:concave_up]
+                for j in 1:(nk - 1)
+                    if (knots[j] < curv_setting[:range[]2]) &&
+                        (knots[j] >= curv_setting[:range][1])
+
+                        n += 1
+                        M[n, j]     = 6. / dknots[j] ^ 2
+                        M[n, j + 1] = -6. / dknots[j] ^ 2
+
+                        M[n, nk + j]     = 4. / dknots[j]
+                        M[n, nk + j + 1] = 2. / dknots[j]
+                    end
+                end
+            else
+                for j in 1:(nk - 1)
+                    if (knots[j] < curv_setting[:range][2]) &&
+                        (knots[j] >= curv_setting[:range][1])
+
+                        n += 1
+                        M[n, j]     = -6. / dknots[j] ^ 2
+                        M[n, j + 1] = 6. / dknots[j] ^ 2
+
+                        M[n, nk + j]     = -4. / dknots[j]
+                        M[n, nk + j + 1] = -2. / dknots[j]
+                    end
+                end
+            end
+
+            end_range = sort(map(a -> max(min(a, knots[end]), knots[1]), curv_setting[:range]))
+            ind = bin_sort(end_range, knots)
+            t = (end_range - knots[ind]) ./ dknots[ind]
+            s = 1. .- t
+
+            if curv_setting[:concave_up]
+                for j in 1:length(ind)
+                    M[n + j, ind[j]]          = -(6. - 12. * s[j]) / dknots[ind[j]] ^ 2
+                    M[n + j, ind[j] + 1]      = -(6. - 12. * t[j]) / dknots[ind[j]] ^ 2
+                    M[n + j, ind[j] + nk]     = -(2. - 6. * s[j]) / dknots[ind[j]]
+                    M[n + j, ind[j] + nk + 1] = -(6. * t[j] - 2.) / dknots[ind[j]]]
+                end
+            else
+                for j in 1:length(ind)
+                    M[n + j, ind[j]]          = (6. - 12. * s[j]) / dknots[ind[j]] ^ 2
+                    M[n + j, ind[j] + 1]      = (6. - 12. * t[j]) / dknots[ind[j]] ^ 2
+                    M[n + j, ind[j] + nk]     = (2. - 6. * s[j]) / dknots[ind[j]]
+                    M[n + j, ind[j] + nk + 1] = (6. * t[j] - 2.) / dknots[ind[j]]]
+                end
+            end
+
+            n += length(ind)
         end
     end
 

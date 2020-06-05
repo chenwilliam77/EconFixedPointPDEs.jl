@@ -1,6 +1,10 @@
 using Dierckx, DifferentialEquations, FastGaussQuadrature, ForwardDiff, Interpolations, LinearAlgebra
-using ModelConstructors, NLsolve, OrderedCollections, Printf, Random, Roots, VectorizedRoutines.Matlab
+using ModelConstructors, NLsolve, NLPModelsIpopt, OrderedCollections, Printf, Random, Roots,
+using SparseArrays, VectorizedRoutines.Matlab
+
 using EconPDEs: StateGrid
+using JSOSolvers: tron
+using NLPModels: LLSModel
 
 import Base: getindex
 import DiffEqBase: initialize!, solve

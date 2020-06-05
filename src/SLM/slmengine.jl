@@ -130,7 +130,7 @@ function SLM(x::AbstractVector{T}, y::AbstractVector{T}; calculate_stats::Bool =
 end
 
 function SLM_cubic(x::AbstractVector{T}, y::AbstractVector{T}, y_scale, y_shift;
-                   nk::Int = 6, C2::Bool = true, increasing::Bool = false, decreasing::Bool = false,
+                   nk::Int = 6, C2::Bool = true, λ::T = 1e-4, increasing::Bool = false, decreasing::Bool = false,
                    increasing_intervals::AbstractMatrix{T} = Matrix{T}(undef, 0, 0),
                    decreasing_intervals::AbstractMatrix{T} = Matrix{T}(undef, 0, 0),
                    concave_up::Bool = false, concave_down::Bool = false,
@@ -167,9 +167,6 @@ function SLM_cubic(x::AbstractVector{T}, y::AbstractVector{T}, y_scale, y_shift;
     # design matrix
     Mdes = construct_design_matrix(x, knots, dknots, xbin)
     rhs = y
-
-    # For each of these sections, can we write these as separate functions that go inside a file called
-    # property.jl, which holds functions that generate desired output?
 
     ## Regularizer
     Mreg = regularizer(dknots, nk)
@@ -267,11 +264,19 @@ function SLM_cubic(x::AbstractVector{T}, y::AbstractVector{T}, y_scale, y_shift;
         Mineq, rhsineq = constuct_curvature_matrix(curvature_settings, nc, nk, dknots, Mineq, rhsineq)
     end
 
-    # Some more regularization
+    ## Dispatch to the appropriate regularizer
+    #  Currently, we only implement the standard regularizer parameter, while
+    #  SLM allows matching a specified RMSE and cross-validiation, too.
+    [coef, λ_out] = solve_slm_system(Mdes, rhs, Mreg, rhsreg, λ,
+                                 Meq, rhseq, Mineq, rhsineq)
+
+    ## Calculate model statistics
+    # Currently, we just add degree and knots to the statistics dictionary
+    # @printf io "degree: %i" get_stats(slm)[:degree]
+    # @printf io "knots:  %i" length(get_stats(slm)[:knots])
 
     # Unpack coefficients into the result structure
-
-    # calculate statistics by translating modelstatistics
+    # ADD CONSTRUCTOR HERE FOR SLM
 
     # MAKE SURE TO ADD YSCALE AND YSHIFT TO STATS
     # (; Dict(:a => 5, :b => 6, :c => 7)...) Dict -> NamedTuple
