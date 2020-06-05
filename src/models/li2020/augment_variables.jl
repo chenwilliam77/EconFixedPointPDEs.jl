@@ -8,12 +8,13 @@ calculates derivatives and additional endogenous variables that can be computed
 after solving the equilibrium system of differential equations.
 """
 function augment_variables_nojump!(m::Li2020, stategrid::StateGrid, ode_f::Function, diffvar::OrderedDict{Symbol, AbstractVector{S}},
+                                   derivs::OrderedDict{Symbol, AbstractVector{S}},
                                    endo::OrderedDict{Symbol, AbstractVector{S}}, odesol::ODESolution) where {S <: Real}
 
     # Unpack equilibrium endogenous variables and stategrid
     p    = diffvar[:p]
-    diffvar[:∂p∂w] = similar(p)
-    ∂p∂w = diffvar[:∂p∂w]
+    derivs[:∂p∂w] = similar(p)
+    ∂p∂w = derivs[:∂p∂w]
     ψ    = endo[:ψ]
     xK   = endo[:xK]
     yK   = endo[:yK]

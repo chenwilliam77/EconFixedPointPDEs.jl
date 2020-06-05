@@ -77,6 +77,7 @@ mutable struct Li2020{T} <: AbstractNLCTModel{T}
     stategrid::OrderedDict{Symbol,Int}                     # dimension number of state variable
 
     differential_variables::OrderedDict{Symbol,Int}
+    derivatives::OrderedDict{Symbol,Int}
     endogenous_variables::OrderedDict{Symbol,Int}
     exogenous_shocks::OrderedDict{Symbol,Int}
     observables::OrderedDict{Symbol,Int}
@@ -114,6 +115,9 @@ function init_model_indices!(m::Li2020)
     # Variables for differential equations
     differential_variables = collect([:p])
 
+    # Derivatives of variables
+    derivatives = collect([:∂p∂w])
+
     # Endogenous variables
     endogenous_variables = collect([:Q, :ψ, :xK, :yK, :xg, :yg, :σp, :σ, :σh])
 
@@ -127,6 +131,7 @@ function init_model_indices!(m::Li2020)
     for (i,k) in enumerate(exogenous_shocks);       m.exogenous_shocks[k]       = i end
     for (i,k) in enumerate(endogenous_variables);   m.endogenous_variables[k]   = i end
     for (i,k) in enumerate(differential_variables); m.differential_variables[k] = i end
+    for (i,k) in enumerate(derivatives);            m.derivatives[k]            = i end
     for (i,k) in enumerate(observables);            m.observables[k]            = i end
     for (i,k) in enumerate(pseudo_observables);     m.pseudo_observables[k]     = i end
 end
@@ -149,7 +154,7 @@ function Li2020(subspec::String = "ss0";
 
             # model indices
             OrderedDict{Symbol,Int}(), OrderedDict{Symbol,Int}(), OrderedDict{Symbol,Int}(), OrderedDict{Symbol,Int}(),
-            OrderedDict{Symbol,Int}(), OrderedDict{Symbol,Int}(),
+            OrderedDict{Symbol,Int}(), OrderedDict{Symbol,Int}(), OrderedDict{Symbol,Int}(),
 
             spec,
             subspec,

@@ -1,4 +1,4 @@
-using Dierckx, DifferentialEquations, FastGaussQuadrature, ForwardDiff, Interpolations
+using Dierckx, DifferentialEquations, FastGaussQuadrature, ForwardDiff, Interpolations, LinearAlgebra
 using ModelConstructors, NLsolve, OrderedCollections, Printf, Random, Roots, VectorizedRoutines.Matlab
 using EconPDEs: StateGrid
 

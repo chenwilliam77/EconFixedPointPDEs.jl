@@ -1,15 +1,5 @@
 """
 ```
-scale_problem(x::AbstractVector, y::AbstractVector, settings)
-```
-
-scales y to minimize numerical issues when constructing splines.
-"""
-function scale_problem(x::AbstractVector, y::AbstractVector, settings::Dict{Symbol, Any})
-end
-
-"""
-```
 choose_knots(k, x)
 ```
 

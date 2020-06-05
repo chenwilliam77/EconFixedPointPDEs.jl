@@ -20,6 +20,7 @@ eltype(m::AbstractNLCTModel{T}) where {T <: Real} = T
 get_keys(m::AbstractNLCTModel) = m.keys
 get_settings(m::AbstractNLCTModel) = m.settings
 get_differential_variables(m::AbstractNLCTModel) = m.differential_variables
+get_derivatives(m::AbstractNLCTModel) = m.derivatives
 get_endogenous_variables(m::AbstractNLCTModel) = m.endogenous_variables
 get_exogenous_shocks(m::AbstractNLCTModel) = m.exogenous_shocks
 get_observables(m::AbstractNLCTModel) = m.observables

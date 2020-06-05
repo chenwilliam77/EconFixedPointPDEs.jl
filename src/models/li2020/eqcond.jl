@@ -21,13 +21,14 @@ function eqcond(m::Li2020)
     # The functional loop should return the proposals for the new values of the variables
     # over which we are iterating. For Li (2020), these are p, xg, and Q̂.
     f = function _functional_loop_li2020(stategrid::StateGrid, diffvar::OrderedDict{Symbol, AbstractVector},
+                                         derivs::OrderedDict{Symbol, AbstractVector},
                                          endo::OrderedDict{Symbol, AbstractVector{S}}, θ::NamedTuple;
                                          verbose::Symbol = :low) where {S <: Real}
 
         # Unpack variables of interest
         p    = diffvar[:p]
-        ∂p∂w = diffvar[:∂p∂w]
-        κp   = diffvar[:κp]
+        ∂p∂w = derivs[:∂p∂w]
+        κp   = endo[:κp]
         Q̂    = endo[:Q̂]
         xg   = endo[:xg]
         ψ    = endo[:ψ]

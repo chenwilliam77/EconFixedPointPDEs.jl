@@ -12,10 +12,11 @@ end
 
 """
 ```
+solve_nojump(m::AbstractNLCTModel)
 ```
 """
 function solve_nojump(m::AbstractNLCTModel)
-    stategrid, differential_variables, endogenous_variables = initialize!(m)
+    stategrid, differential_variables, derivatives, endogenous_variables = initialize!(m)
 
     if length(stategrid.x) == 1 # Univariate no jump model => use ODE methods
         s = collect(keys(get_stategrid(m)))[1] # state variable name
@@ -29,8 +30,8 @@ function solve_nojump(m::AbstractNLCTModel)
                     abstol = get_setting(m, :ode_abstol), callback = ode_callback)
 
         augment_variables_nojump!(m, stategrid, ode_f, differential_variables,
-                          endogenous_variables, sol)
+                          derivatives, endogenous_variables, sol)
 
-        return stategrid, differential_variables, endogenous_variables
+        return stategrid, differential_variables, derivatives, endogenous_variables
     end
 end

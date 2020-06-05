@@ -24,6 +24,13 @@ function initialize!(m::Li2020)
         diffvar[k] = Vector{model_type}(undef, N)
     end
 
+    # Construct dictionary of derivatives
+    derivs = OrderedDict{Symbol, Vector{model_type}}()
+    for k in keys(get_derivatives(m))
+        derivs[k] = Vector{model_type}(undef, N)
+    end
+
+
     # Construct dictionary of endogenous variables
     endo = OrderedDict{Symbol, Vector{model_type}}()
     for k in keys(get_endogenous_variables(m))
@@ -43,5 +50,5 @@ function initialize!(m::Li2020)
     # Settings for functional iteration
     m <= Setting(:κp_guess, vcat(0., exp(range(log(1e-3), stop = log((p₁ - p₀) / p₁), length = 19))))
 
-    return stategrid, diffvar, endo
+    return stategrid, diffvar, derivs, endo
 end
