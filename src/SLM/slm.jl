@@ -95,7 +95,16 @@ function SLM(x::AbstractVector{T}, y::AbstractVector{T}; calculate_stats::Bool =
         error("degree 1 has not been implemented")
     elseif kwargs[:degree] == 3
 
-        return SLM_cubic(x, ŷ, kwargs...)
+        return SLM_cubic(x, ŷ, y_scale, y_shift;
+                         nk = kwargs[:knots], C2 = kwargs[:C2], λ = kwargs[:λ], increasing = kwargs[:increasing],
+                         decreasing = kwargs[:decreasing], increasing_intervals = kwargs[:increasing_intervals],
+                         decreasing_intervals = kwargs[:decreasing_intervals],
+                         concave_up = kwargs[:concave_up], concave_down = kwargs[:concave_down],
+                         concave_up_intervals = kwargs[:concave_up_intervals],
+                         concave_down_intervals = kwargs[:concave_down_intervals],
+                         left_value = kwargs[:left_value], right_value = kwargs[:right_value],
+                         min_value = kwargs[:min_value], max_value = kwargs[:max_value],
+                         min_max_sample_points = kwargs[:min_max_sample_points])
     else
         error("degree $(kwargs[:degree]) has not been implemented")
     end
@@ -114,22 +123,23 @@ function SLM(x::AbstractVector{T}, y::AbstractVector{T}; calculate_stats::Bool =
     end
 
     if verbose == :high
-        error()
         @info "Model Statistics Report"
         println("Number of data points:      $(length(y))")
         println("Scale factor applied to y   $(y_scale)")
         println("Shift applied to y          $(y_shift)")
-        println("Total degrees of freedom:   $(get_stats(slm)[:total_df])")
-        println("Net degrees of freedom:     $(get_stats(slm)[:net_df])")
-        println("R-squared:                  $(get_stats(slm)[:R2])")
-        println("Adjusted R-squared:         $(get_stats(slm)[:R2_adj])")
-        println("RMSE:                       $(get_stats(slm)[:RMSE])")
-        println("Range of prediction errors: $(get_stats(slm)[:error_range])")
-        println("Error quartiles (25%, 75%): $(get_stats(slm)[:quartiles])")
+        # println("Total degrees of freedom:   $(get_stats(slm)[:total_df])")
+        # println("Net degrees of freedom:     $(get_stats(slm)[:net_df])")
+        # println("R-squared:                  $(get_stats(slm)[:R2])")
+        # println("Adjusted R-squared:         $(get_stats(slm)[:R2_adj])")
+        # println("RMSE:                       $(get_stats(slm)[:RMSE])")
+        # println("Range of prediction errors: $(get_stats(slm)[:error_range])")
+        # println("Error quartiles (25%, 75%): $(get_stats(slm)[:quartiles])")
     end
+
+    return slm
 end
 
-function SLM_cubic(x::AbstractVector{T}, y::AbstractVector{T}, y_scale, y_shift;
+function SLM_cubic(x::AbstractVector{T}, y::AbstractVector{T}, y_scale::T, y_shift::T;
                    nk::Int = 6, C2::Bool = true, λ::T = 1e-4, increasing::Bool = false, decreasing::Bool = false,
                    increasing_intervals::AbstractMatrix{T} = Matrix{T}(undef, 0, 0),
                    decreasing_intervals::AbstractMatrix{T} = Matrix{T}(undef, 0, 0),
@@ -267,29 +277,26 @@ function SLM_cubic(x::AbstractVector{T}, y::AbstractVector{T}, y_scale, y_shift;
     ## Dispatch to the appropriate regularizer
     #  Currently, we only implement the standard regularizer parameter, while
     #  SLM allows matching a specified RMSE and cross-validiation, too.
-    [coef, λ_out] = solve_slm_system(Mdes, rhs, Mreg, rhsreg, λ,
-                                 Meq, rhseq, Mineq, rhsineq)
+    coef = solve_slm_system(Mdes, rhs, Mreg, rhsreg, λ,
+                            Meq, rhseq, Mineq, rhsineq)
 
     ## Calculate model statistics
-    # Currently, we just add degree and knots to the statistics dictionary
-    # @printf io "degree: %i" get_stats(slm)[:degree]
-    # @printf io "knots:  %i" length(get_stats(slm)[:knots])
+    # Currently, we just add degree and knots to the statistics NamedTuple
+    stats = (degree = 3, knots = knots,
+             y_scale = y_scale, y_shift = y_shift)
 
     # Unpack coefficients into the result structure
-    # ADD CONSTRUCTOR HERE FOR SLM
-
-    # MAKE SURE TO ADD YSCALE AND YSHIFT TO STATS
-    # (; Dict(:a => 5, :b => 6, :c => 7)...) Dict -> NamedTuple
+    return SLM{T}(stat, x, y ,coef)
 end
 
 """
 ```
-scale_problem(x::AbstractVector, y::AbstractVector, kwargs)
+scale_problem!(x::AbstractVector, y::AbstractVector, kwargs)
 ```
 
 scales y to minimize numerical issues when constructing splines.
 """
-function scale_problem(x::AbstractVector, y::AbstractVector, kwargs::Dict{Symbol, Any})
+function scale_problem!(x::AbstractVector, y::AbstractVector, kwargs::Dict)
     scaling = haskey(kwargs, :scaling) ? kwargs[:scaling] : false
     kwargs[:scaling] = scaling # in case scaling didn't exist already
 
