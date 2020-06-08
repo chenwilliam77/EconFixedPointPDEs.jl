@@ -22,7 +22,6 @@ include("solve/solve.jl")
 
 # SLM/
 include("SLM/slm.jl")
-include("SLM/default_slm_kwargs.jl")
 include("SLM/eval.jl")
 include("SLM/property.jl")
 include("SLM/solve_slm_system.jl")

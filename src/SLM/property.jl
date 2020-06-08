@@ -122,8 +122,8 @@ function scale_problem!(x::AbstractVector, y::AbstractVector, kwargs::Dict)
         ϕ⁻¹ = (sqrt(5.) - 1.) / 2.;
 
         # Shift and scale are determined from min and max of y
-        ymin = min(y)
-        ymax = max(y)
+        ymin = minimum(y)
+        ymax = maximum(y)
 
         y_scale = 1. / (ymax - ymin)
 
@@ -146,7 +146,6 @@ function scale_problem!(x::AbstractVector, y::AbstractVector, kwargs::Dict)
         #  decreasing, degree, increasing, knots
         #
         # All other constraints will potentially be affected.
-
 
         # left_value
         if haskey(kwargs, :left_value)
