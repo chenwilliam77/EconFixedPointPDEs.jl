@@ -66,7 +66,7 @@ function eqcond(m::Li2020)
 
             ψᵢ = xKᵢ / wᵢ / (pᵢ / (pᵢ + Q̂ᵢ))
             p_new[i] = nlsolve(x -> Φ(x, θ[:χ], θ[:δ]) .+ θ[:ρ] .* (x .+ Q̂ᵢ) .- (ψᵢ * θ[:AH] + (1. - ψᵢ) * θ[:AL]),
-                           [(p₀ + p₁) / 2]., autodiff = :forward)
+                           [(p₀ + p₁) / 2.], autodiff = :forward)
             solved_κp[i] = succeed_κp
             solved_xK[i] = succeed_xK
             solved_xg[i] = succeed_xg

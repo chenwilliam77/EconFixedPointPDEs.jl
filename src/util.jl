@@ -81,3 +81,12 @@ end
 function detexify(s::Symbol)
     Symbol(detexify(string(s)))
 end
+
+function mat_to_jld2(fn::String, outfn::String)
+    mat_data = matread(fn)
+    JLD2.jldopen(outfn, true, true, true, IOStream) do file
+        for (k, v) in mat_data
+            write(file, k, v)
+        end
+    end
+end

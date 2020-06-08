@@ -1,4 +1,4 @@
-function solve_slm_system(Mdes::AbstractMatrix{S} rhs::AbstractVector{S},
+function solve_slm_system(Mdes::AbstractMatrix{S}, rhs::AbstractVector{S},
                           Mreg::AbstractMatrix{S}, rhsreg::AbstractVector{S},
                           λ::S, Meq::AbstractMatrix{S}, rhseq::AbstractVector{S},
                           Mineq::AbstractMatrix{S}, rhsineq::AbstractVector{S};

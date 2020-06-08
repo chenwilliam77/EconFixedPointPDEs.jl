@@ -1,33 +1,45 @@
 # In case more abstraction is needed
 abstract type AbstractSLM{T} end
 
-# TEST THIS CODE BY FITTING MULTIPLE DIFFERENT CURVES FROM LI 2020
-# ADD TESTS FOR DECREASING, CONCAVE UP, CONCAVE DOWN,
-# AND ALSO ADD TESTS FOR INCREASING DECREASING REGIONS
-# DO THIS BY WRITING TESTS IN MATLAB AND THEN SAVING OUTPUT FOR JULIA
-# MAKE SURE TO SAVE THE MATLAB SCRIPTS TOO
 """
 ```
 SLM
 ```
 
-is a port of the main function (with the same name) from
-Shape Language Modeling (SLM) by John D'Errico,
+is a port of Shape Language Modeling (SLM) by John D'Errico,
 who implements least squares spline modeling for curve fitting.
 
 See https://www.mathworks.com/matlabcentral/fileexchange/24443-slm-shape-language-modeling for details about the SLM toolbox.
 
-Note that only the monotonocity features have been ported for now.
-Other features, such as convexity and concavity restrictions, may
-be added on as-needed basis.
+Note that only the features described in the Keywords section have been ported for now.
+Other features may be added on as-needed basis.
 
-Statistics are computed only if the keyword calculate_stats is true.
+The main constructor has the form
+
+```
+SLM(x::AbstractVector{T}, y::AbstractVector{T}; calculate_stats::Bool = false,
+    verbose::Symbol = :low, kwargs...) where {T <: Real}
+```
+
+### Inputs
+- The vectors `x` and `y` are the points with which the least-squares spline will be fit.
+
+### Keywords
+- `degree::Int = 3`: Degree of the spline. A degree 3 spline is a piecewise cubic Hermite spline.
+- `issorted::Bool = true`: If true, it is assumed that the `x` values used are sorted already.
+- `scaling::Int = 3`: Degree of the spline. A degree 3 spline is a piecewise cubic Hermite spline.
+- `calculate_stats::Bool = false`: If true, calculate statistics about the spline regression (e.g. R²).
+- `verbose::Symbol`: Verbosity of information printed during construction of an SLM object.
+COMPLETE THE KEYWORDS
 """
 mutable struct SLM{T} <: AbstractSLM{T}
     stats::NamedTuple
+    type::Symbol
     x::AbstractVector{T}
     y::AbstractVector{T}
+    knots::AbstractVector{T}
     coef::AbstractArray{T}
+    extrapolation::Symbol
 end
 
 function Base.show(io::IO, slm::AbstractSLM{T}) where {T <: Real}
@@ -38,18 +50,29 @@ end
 
 # Access functions
 get_stats(slm::AbstractSLM) = slm.stats
+get_knots(slm::AbstractSLM) = slm.knots
+get_type(slm::AbstractSLM) = slm.type
 get_x(slm::AbstractSLM) = slm.x
 get_y(slm::AbstractSLM) = slm.y
 get_coef(slm::AbstractSLM) = slm.coef
+get_extrapolation(slm::AbstractSLM) = slm.extrapolation
 eltype(slm::AbstractSLM) = slm.stats
 
 function getindex(slm::AbstractSLM, x::Symbol)
     if x == :stats
         get_stats(slm)
+    elseif x == :knots
+        get_knots(slm)
     elseif x == :x
         get_x(slm)
     elseif x == :y
         get_y(slm)
+    elseif x == :coef
+        get_coef(slm)
+    elseif x == :type
+        get_type(slm)
+    elseif x == :extrapolation || x == :extrap
+        get_extrapolation(slm)
     else
         error("type " * typeof(slm) * " has no field " * string(x))
     end
@@ -139,7 +162,7 @@ function SLM(x::AbstractVector{T}, y::AbstractVector{T}; calculate_stats::Bool =
     return slm
 end
 
-function SLM_cubic(x::AbstractVector{T}, y::AbstractVector{T}, y_scale::T, y_shift::T;
+function SLM_cubic(x::AbstractVector{T}, y::AbstractVector{T}, y_scale::T, y_shift::T; issorted::Bool = true,
                    nk::Int = 6, C2::Bool = true, λ::T = 1e-4, increasing::Bool = false, decreasing::Bool = false,
                    increasing_intervals::AbstractMatrix{T} = Matrix{T}(undef, 0, 0),
                    decreasing_intervals::AbstractMatrix{T} = Matrix{T}(undef, 0, 0),
@@ -172,7 +195,7 @@ function SLM_cubic(x::AbstractVector{T}, y::AbstractVector{T}, y_scale::T, y_shi
     ## Build design matrix
 
     # Bin data so that xbin has nₓ and xbin specifies into which bin each x value falls
-    xbin = bin_sort(x, nk)
+    xbin = bin_sort(x, nk; issorted = issorted)
 
     # design matrix
     Mdes = construct_design_matrix(x, knots, dknots, xbin)
@@ -279,6 +302,7 @@ function SLM_cubic(x::AbstractVector{T}, y::AbstractVector{T}, y_scale::T, y_shi
     #  SLM allows matching a specified RMSE and cross-validiation, too.
     coef = solve_slm_system(Mdes, rhs, Mreg, rhsreg, λ,
                             Meq, rhseq, Mineq, rhsineq)
+    coef = reshape(coef, nk, 2)
 
     ## Calculate model statistics
     # Currently, we just add degree and knots to the statistics NamedTuple
@@ -286,7 +310,7 @@ function SLM_cubic(x::AbstractVector{T}, y::AbstractVector{T}, y_scale::T, y_shi
              y_scale = y_scale, y_shift = y_shift)
 
     # Unpack coefficients into the result structure
-    return SLM{T}(stat, x, y ,coef)
+    return SLM{T}(stat, :cubic, x, y, knots, coef, :none)
 end
 
 """
@@ -426,9 +450,9 @@ function construct_regularizer(dknots::AbstractVector{T}, nk::Int) where {T <: R
         sd[i, i + 1] = -2. / dknots[i]
     end
     sf[nk, nk - 1] = 6. / dknots[end]^2
-    sf[nk, nk] = -6. / dknots[end]^
+    sf[nk, nk] = -6. / dknots[end]^2
     sd[nk, nk - 1] = 2 / dknots[end]
-    sd[nk, nk] = 4 / dknots[end]
+    sd[nk, nk] = 4. / dknots[end]
     Mreg = Mreg * hcat(sf, sd)
 
     # Scale the regularizer before applied to the regularizing parameter

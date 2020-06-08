@@ -115,7 +115,7 @@ function monotone_decreasing!(monotone_settings::Vector{NamedTuple{(:knotlist, :
 
 adds the properties of a monotone decreasing spline.
 """
-function monotone_decreasing!(monotone_settings::Vector{NamedTuple{(:knotlist, :increasing, :range), Tuple{Tuple{Int, Int}, Bool}}},
+function monotone_decreasing!(monotone_settings::Vector{NamedTuple{(:knotlist, :increasing), Tuple{Tuple{Int, Int}, Bool}}},
                               nk::Int) where {T <: Real}
     push!(monotone_settings, (knotlist = (1, nk), increasing = false))
     return nk - 1
@@ -470,7 +470,7 @@ function construct_curvature_matrix(curvature_settings::Vector{NamedTuple{(:conc
             curv_setting = curvature_settings[i]
             if curv_setting[:concave_up]
                 for j in 1:(nk - 1)
-                    if (knots[j] < curv_setting[:range[]2]) &&
+                    if (knots[j] < curv_setting[:range][2]) &&
                         (knots[j] >= curv_setting[:range][1])
 
                         n += 1
@@ -506,14 +506,14 @@ function construct_curvature_matrix(curvature_settings::Vector{NamedTuple{(:conc
                     M[n + j, ind[j]]          = -(6. - 12. * s[j]) / dknots[ind[j]] ^ 2
                     M[n + j, ind[j] + 1]      = -(6. - 12. * t[j]) / dknots[ind[j]] ^ 2
                     M[n + j, ind[j] + nk]     = -(2. - 6. * s[j]) / dknots[ind[j]]
-                    M[n + j, ind[j] + nk + 1] = -(6. * t[j] - 2.) / dknots[ind[j]]]
+                    M[n + j, ind[j] + nk + 1] = -(6. * t[j] - 2.) / dknots[ind[j]]
                 end
             else
                 for j in 1:length(ind)
                     M[n + j, ind[j]]          = (6. - 12. * s[j]) / dknots[ind[j]] ^ 2
                     M[n + j, ind[j] + 1]      = (6. - 12. * t[j]) / dknots[ind[j]] ^ 2
                     M[n + j, ind[j] + nk]     = (2. - 6. * s[j]) / dknots[ind[j]]
-                    M[n + j, ind[j] + nk + 1] = (6. * t[j] - 2.) / dknots[ind[j]]]
+                    M[n + j, ind[j] + nk + 1] = (6. * t[j] - 2.) / dknots[ind[j]]
                 end
             end
 

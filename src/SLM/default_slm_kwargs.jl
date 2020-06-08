@@ -7,6 +7,16 @@ adds the default keyword arguments for an SLM object.
 """
 function default_slm_kwargs!(kwargs::Dict)
 
+    # degree
+    if !haskey(kwargs, :degree)
+        kwargs[:degree] = 3
+    end
+
+    # issorted
+    if !haskey(kwargs, :issorted)
+        kwargs[:issorted] = false
+    end
+
     # scaling
     if !haskey(kwargs, :scaling)
         kwargs[:scaling] = true
