@@ -1,7 +1,6 @@
 """
 ```
-eval(slm::SLM{T}, x::AbstractVector{T}, evalmode::Int = 0;
-    issorted::Bool = true) where {T <: Real}
+eval(slm::SLM{T}, x::AbstractVector{T}, evalmode::Int = 0) where {T <: Real}
 ```
 
 evaluates the spline prescribed by `slm` at the values `x`. The optional input
@@ -16,12 +15,6 @@ Note that the inverse of points which fall above the maximum
 or below the minimum value of the function will be returned as a NaN.
 
 Currently, no constant extrapolation is supported.
-
-### Keywords
-- `issorted`: indicates if `x` is a sorted vector of interpolation points (from smallest to largest).
-    If `issorted = false`, then `x` does not need to be sorted in ascending order.
-    Internally, `eval` internally will still sort `x` but will return the spline's evaluation
-    in the order implied by the unsorted `x`.
 """
 function eval(slm::SLM{T}, x::AbstractVector{T}, evalmode::Int = 0;
               issorted::Bool = true) where {T <: Real}
@@ -48,7 +41,7 @@ function eval(slm::SLM{T}, x::AbstractVector{T}, evalmode::Int = 0;
     ## Evaluate spline
 
     # Sort points into bins. Inverse case is handled later -> just zeros for now.
-    x_bins = evalmode >= 0 ? bin_sort(x, knots; issorted = issorted) : zeros(Int, nₓ)
+    x_bins = evalmode >= 0 ? bin_sort(x, knots) : zeros(Int, nₓ)
 
     if get_type(slm) == :cubic
         y = if evalmode == 0

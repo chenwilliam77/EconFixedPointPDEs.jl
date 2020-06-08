@@ -4,21 +4,20 @@ include("../../src/includeall.jl")
 d = Dict()
 default_slm_kwargs!(d)
 d1 = deepcopy(d)
-d1[:issorted] = true
+d1[:increasing] = true
 
 @testset "Default SLM keyword arguments" begin
     for (i, di) in enumerate([d, d1])
         @test di[:degree] == 3
-        if i == 1
-            @test di[:issorted] == false
-        else
-            @test di[:issorted] == true
-        end
         @test di[:scaling] == true
         @test di[:knots] == 6
         @test di[:C2] == true
         @test di[:λ] == 1e-4
-        @test di[:increasing] == false
+        if i == 1
+            @test di[:increasing] == false
+        else
+            @test di[:increasing] == true
+        end
         @test di[:decreasing] == false
         @test isempty(di[:increasing_intervals])
         @test isempty(di[:decreasing_intervals])

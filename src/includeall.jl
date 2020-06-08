@@ -1,6 +1,6 @@
 using Dierckx, DifferentialEquations, FastGaussQuadrature, FileIO, ForwardDiff, Interpolations, JLD2, LinearAlgebra
 using ModelConstructors, NLsolve, NLPModelsIpopt, OrderedCollections, Printf, Random, Roots
-using SparseArrays, VectorizedRoutines.Matlab
+using SparseArrays, StatsBase, VectorizedRoutines.Matlab
 
 using EconPDEs: StateGrid
 using JSOSolvers: tron

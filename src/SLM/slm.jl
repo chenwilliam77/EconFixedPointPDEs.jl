@@ -26,7 +26,6 @@ SLM(x::AbstractVector{T}, y::AbstractVector{T}; calculate_stats::Bool = false,
 
 ### Keywords
 - `degree::Int = 3`: Degree of the spline. A degree 3 spline is a piecewise cubic Hermite spline.
-- `issorted::Bool = true`: If true, it is assumed that the `x` values used are sorted already.
 - `scaling::Int = 3`: Degree of the spline. A degree 3 spline is a piecewise cubic Hermite spline.
 - `calculate_stats::Bool = false`: If true, calculate statistics about the spline regression (e.g. R²).
 - `verbose::Symbol`: Verbosity of information printed during construction of an SLM object.
@@ -162,7 +161,7 @@ function SLM(x::AbstractVector{T}, y::AbstractVector{T}; calculate_stats::Bool =
     return slm
 end
 
-function SLM_cubic(x::AbstractVector{T}, y::AbstractVector{T}, y_scale::T, y_shift::T; issorted::Bool = true,
+function SLM_cubic(x::AbstractVector{T}, y::AbstractVector{T}, y_scale::T, y_shift::T;
                    nk::Int = 6, C2::Bool = true, λ::T = 1e-4, increasing::Bool = false, decreasing::Bool = false,
                    increasing_intervals::AbstractMatrix{T} = Matrix{T}(undef, 0, 0),
                    decreasing_intervals::AbstractMatrix{T} = Matrix{T}(undef, 0, 0),
@@ -195,7 +194,7 @@ function SLM_cubic(x::AbstractVector{T}, y::AbstractVector{T}, y_scale::T, y_shi
     ## Build design matrix
 
     # Bin data so that xbin has nₓ and xbin specifies into which bin each x value falls
-    xbin = bin_sort(x, nk; issorted = issorted)
+    xbin = bin_sort(x, nk)
 
     # design matrix
     Mdes = construct_design_matrix(x, knots, dknots, xbin)

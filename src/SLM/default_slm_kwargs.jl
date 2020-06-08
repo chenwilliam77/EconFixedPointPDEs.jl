@@ -12,10 +12,10 @@ function default_slm_kwargs!(kwargs::Dict)
         kwargs[:degree] = 3
     end
 
-    # issorted
-    if !haskey(kwargs, :issorted)
-        kwargs[:issorted] = false
-    end
+    # # issorted
+    # if !haskey(kwargs, :issorted)
+    #     kwargs[:issorted] = false
+    # end
 
     # scaling
     if !haskey(kwargs, :scaling)
