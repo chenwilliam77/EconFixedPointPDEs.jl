@@ -173,33 +173,37 @@ end
 """
 ```
 construct_design_matrix(x::AbstractVector{T}, knots::AbstractVector{T},
-    dknots::AbstractVector{T}, xbin::AbstractVector{Int}) where {T <: Real}
+    dknots::AbstractVector{T}, x_bins::AbstractVector{Int}, nₓ::Int, nk::Int, nc::Int) where {T <: Real}
 ```
 
 constructs the design matrix used to create an SLM.
 """
 function construct_design_matrix(x::AbstractVector{T}, knots::AbstractVector{T},
-                                 dknots::AbstractVector{T}, xbin::AbstractVector{Int}) where {T <: Real}
+                                 dknots::AbstractVector{T}, x_bins::AbstractVector{Int},
+                                 nₓ::Int, nk::Int, nc::Int) where {T <: Real}
 
-    # Create valus used in the design matrix
-    t  = (x - knots[xbin]) ./ dknots[xbin]
+    # Create values used in the design matrix
+    t  = (x - knots[x_bins]) ./ dknots[x_bins]
     t² = t.^2
     t³ = t.^3
-    s² = (1. .- t).^2
-    s³ = (1. .- t).^3
+    s² = (1. .- t) .^ 2
+    s³ = (1. .- t) .^ 3
 
     vals = [3. .* s² .- 2. .* s³;
             3. .* t² .- 2. .* t³;
-            (s² - s³) .* dknots[xbin];
-            (t³ - t²) .* dknots[xbin]]
+            (s² - s³) .* dknots[x_bins];
+            (t³ - t²) .* dknots[x_bins]]
 
     # Coefficients are stored in two blocks,
     # first nk function values, then nk derivatives
-    Mdes = accumarray(hcat(repmat(1:nₓ, 4, 1),
-                           [xbin; xbin .+ 1.; nk .+ xbin; (nk + 1.) .+ xbin]),
-                      vals, sz = (nₓ, nc))
-end
+    # Must use vector of CartesianIndex for the subscripts (unlike in Matlab)
+    Mdes = accumarray([CartesianIndex(i, j) for (i, j) in
+                       zip(repeat(collect(1:nₓ), 4),
+                           [x_bins; x_bins .+ 1; nk .+ x_bins; (nk + 1) .+ x_bins])],
+                      vals, (nₓ, nc))
 
+    return Mdes
+end
 
 """
 ```
@@ -219,11 +223,11 @@ function construct_regularizer(dknots::AbstractVector{T}, nk::Int) where {T <: R
     Mreg[nk, nk - 1] = dknots[end] / 6.
     Mreg[nk, nk] = dknots[end] / 3.
     for i in 2:(nk - 1)
-        Mreg[i, i - 1] = dx[i - 1] / 6.
-        Mreg[i, i] = (dx[i - 1] + dx[i]) / 3.
-        Mreg[i, i + 1] = dx[i] / 6.
+        Mreg[i, i - 1] = dknots[i - 1] / 6.
+        Mreg[i, i] = (dknots[i - 1] + dknots[i]) / 3.
+        Mreg[i, i + 1] = dknots[i] / 6.
     end
-    Mreg = cholesky(Mreg).upper # Matrix square root, cholesky is easy way to do this
+    Mreg = cholesky(Mreg).U # Matrix square root, cholesky is easy way to do this
 
     # Write second derivativeas as a function of
     # the function values and first derivatives
@@ -242,19 +246,20 @@ function construct_regularizer(dknots::AbstractVector{T}, nk::Int) where {T <: R
     Mreg = Mreg * hcat(sf, sd)
 
     # Scale the regularizer before applied to the regularizing parameter
-    Mreg ./= norm(Mreg, 1)
+    Mreg ./= opnorm(Mreg, 1)
 
     return Mreg
 end
 
 """
 ```
-C2_matrix(nk::Int, nc::Int, dknots::AbstractVector{T}) where {T <: Real}
+C2_matrix(nk::Int, nc::Int, dknots::AbstractVector{T},
+    Meq::AbstractMatrix{T}, rhseq::AbstractVector{T}) where {T <: Real}
 ```
 
 constructs the matrix of equations that enforce twice-continuous differentiability.
 """
-function C2_matrix(nk::Int, nc::Int, dknots::AbstractVector{T}) where {T <: Real}
+function C2_matrix(nk::Int, nc::Int, dknots::AbstractVector{T}, Meq::AbstractMatrix{T}, rhseq::AbstractVector{T}) where {T <: Real}
     MC2 = zeros(T, nk - 2, nc)
     for i in 1:(nk - 2)
         MC2[i, i] = 6. / dknots[i]^2
@@ -266,7 +271,7 @@ function C2_matrix(nk::Int, nc::Int, dknots::AbstractVector{T}) where {T <: Real
         MC2[i, nk + i + 2] =  2. / dknots[i]
     end
 
-    return MC2
+    return vcat(Meq, MC2), vcat(rhseq, zeros(T, nk - 2))
 end
 
 """
@@ -459,10 +464,10 @@ end
 
 """
 ```
-set_left_value(left_value::T, M::AbstractMatrix{T}, rhseq::AbstractVector{T}) where {T <: Real}
+set_left_value(left_value::T, nc:Int, M::AbstractMatrix{T}, rhseq::AbstractVector{T}) where {T <: Real}
 ```
 """
-function set_left_value(left_value::T, M::AbstractMatrix{T}, rhseq::AbstractVector{T}) where {T <: Real}
+function set_left_value(left_value::T, nc::Int, M::AbstractMatrix{T}, rhseq::AbstractVector{T}) where {T <: Real}
     M_add = zeros(T, 1, nc)
     M_add[1] = 1.
     return vcat(M, M_add), vcat(rhseq, left_value)
@@ -470,10 +475,10 @@ end
 
 """
 ```
-set_right_value(right_value::T, M::AbstractMatrix{T}, rhseq::AbstractVector{T}) where {T <: Real}
+set_right_value(right_value::T, nc::Int, nk::Int, M::AbstractMatrix{T}, rhseq::AbstractVector{T}) where {T <: Real}
 ```
 """
-function set_right_value(right_value::T, nk::Int, M::AbstractMatrix{T}, rhseq::AbstractVector{T}) where {T <: Real}
+function set_right_value(right_value::T, nc::Int, nk::Int, M::AbstractMatrix{T}, rhseq::AbstractVector{T}) where {T <: Real}
     M_add = zeros(T, 1, nc)
     M_add[nk] = 1.
     return vcat(M, M_add), vcat(rhseq, right_value)

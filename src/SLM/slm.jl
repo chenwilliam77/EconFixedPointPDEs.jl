@@ -197,7 +197,7 @@ function SLM_cubic(x::AbstractVector{T}, y::AbstractVector{T}, y_scale::T, y_shi
     xbin = bin_sort(x, nk)
 
     # design matrix
-    Mdes = construct_design_matrix(x, knots, dknots, xbin)
+    Mdes = construct_design_matrix(x, knots, dknots, xbin, nₓ, nk, nc)
     rhs = y
 
     ## Regularizer
@@ -206,11 +206,27 @@ function SLM_cubic(x::AbstractVector{T}, y::AbstractVector{T}, y_scale::T, y_shi
 
     ## C2 continuity across knots
     if C2
-        MC2 = C2_matrix(nk, nc, dknots)
-        Meq = vcat(Meq, MC2)
-        push!(rhseq, zeros(nk - 2))
+        Meq, rhseq = C2_matrix(nk, nc, dknots, Meq, rhseq)
     end
 
+    ## Left and right values
+    if !isnan(left_value)
+        Meq, rhseq = set_left_value(left_value, nc, Meq, rhseq)
+    end
+
+    if !isnan(right_value)
+        Meq, rhseq = set_right_value(right_value, nc, nk, Meq, rhseq)
+    end
+
+
+    # Global minimum and maximum values
+    if !isnan(min_value)
+        Mineq, rhsineq = set_min_value(min_value, nk, nc, Mineq, rhsineq; sample_points = min_max_sample_points)
+    end
+
+    if !isnan(max_value)
+        Mineq, rhsineq = set_max_value(max_value, nk, nc, Mineq, rhsineq; sample_points = min_max_sample_points)
+    end
     ## Monotonicity restrictions
     @assert !(increasing && decreasing) "Only one of increasing and decreasing can be true"
 
@@ -246,31 +262,11 @@ function SLM_cubic(x::AbstractVector{T}, y::AbstractVector{T}, y_scale::T, y_shi
         Mineq, rhsineq = construct_monotoncity_matrix(monotone_settings, nc, nk, dknots, total_monotone_intervals, Mineq, rhsineq)
     end
 
-    ## Left and right values
-    if !isnan(left_value)
-        Meq, rhseq = set_left_value(left_value, Meq, rhseq)
-    end
-
-    if !isnan(right_value)
-        Meq, rhseq = set_right_value(right_value, nk, Meq, rhseq)
-    end
-
-    # Global minimum and maximum values
-    if !isnan(min_value)
-        Mineq, rhsineq = set_min_value(min_value, nk, nc, Mineq, rhsineq; sample_points = min_max_sample_points)
-    end
-
-    if !isnan(max_value)
-        Mineq, rhsineq = set_max_value(max_value, nk, nc, Mineq, rhsineq; sample_points = min_max_sample_points)
-    end
-
-    ## WE WILL USE NLPMODELS.LinearLeastSquares
-
+    ## Concavity
     @assert !(concave_up && concave_down) "Only one of concave_up and concave_down can be true"
 
     curvature_settings = Vector{NamedTuple{(:concave_up, :range), Tuple{Bool, }}}(undef, 0)
 
-    ## Concavity
     if concave_up
         @assert isempty(concave_up_intervals) && isempty(concave_down_intervals) "The spline cannot be concave up and " *
             "have nonempty entries for the keywords concave_up_intervals and/or concave_down_intervals"
