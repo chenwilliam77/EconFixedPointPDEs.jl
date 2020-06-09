@@ -227,6 +227,7 @@ function SLM_cubic(x::AbstractVector{T}, y::AbstractVector{T}, y_scale::T, y_shi
     if !isnan(max_value)
         Mineq, rhsineq = set_max_value(max_value, nk, nc, Mineq, rhsineq; sample_points = min_max_sample_points)
     end
+
     ## Monotonicity restrictions
     @assert !(increasing && decreasing) "Only one of increasing and decreasing can be true"
 
@@ -254,7 +255,7 @@ function SLM_cubic(x::AbstractVector{T}, y::AbstractVector{T}, y_scale::T, y_shi
 
     # Decreasing intervals
     if !isempty(decreasing_intervals)
-        decreasing_intervals_info!(monotone_settings, increasing_intervals)
+        decreasing_intervals_info!(monotone_settings, decreasing_intervals)
     end
 
     # Add inequalities enforcing monotonicity
