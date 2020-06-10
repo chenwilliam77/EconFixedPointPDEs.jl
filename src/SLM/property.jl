@@ -92,7 +92,7 @@ function default_slm_kwargs!(kwargs::Dict)
     end
 
     if !haskey(kwargs, :min_max_sample_points)
-        kwargs[:min_max_sample_points] = [.017037, .066987, .1465, .25, .37059,
+        kwargs[:min_max_sample_points] = [.017037, .066987, .14645, .25, .37059,
                                           .5, .62941, .75, .85355, .93301, .98296]
     end
 
@@ -276,15 +276,15 @@ end
 
 """
 ```
-function monotone_increasing!(monotone_settings::Vector{NamedTuple{(:knotlist, :increasing), Tuple{Tuple{Int, Int}, Bool, Vector{T}}}},
+function monotone_increasing!(monotone_settings::Vector{NamedTuple{(:knotlist, :increasing), Tuple{Tuple{Int, Int}, Bool}}},
     nk::Int) where {T <: Real}
 ```
 
 adds the properties of a monotone increasing spline.
 """
 function monotone_increasing!(monotone_settings::Vector{NamedTuple{(:knotlist, :increasing), Tuple{Tuple{Int, Int}, Bool}}},
-                              nk::Int) where {T <: Real}
-    push!(monotone_settings, (knotlist = (1, nk), increasing = true, range = Vector{T}(undef, 0)))
+                              nk::Int)
+    push!(monotone_settings, (knotlist = (1, nk), increasing = true))
     return nk - 1
 end
 
@@ -303,7 +303,7 @@ function increasing_intervals_info!(monotone_settings::Vector{NamedTuple{(:knotl
         knotlist = (max(1, findlast(knots .<= increasing_intervals[i, 1])),
                     min(nk, 1 + findlast(knots .< increasing_intervals[i, 2])))
         push!(monotone_settings, (knotlist = knotlist, increasing = true))
-        out += diff(knotlist)
+        out += knotlist[2] - knotlist[1]
     end
 
     return out
@@ -338,7 +338,7 @@ function decreasing_intervals_info!(monotone_settings::Vector{NamedTuple{(:knotl
         knotlist = (max(1, findlast(knots .<= decreasing_intervals[i, 1])),
                     min(nk, 1 + findlast(knots .< decreasing_intervals[i, 2])))
         push!(monotone_settings, (knotlist = knotlist, increasing = false))
-        out += diff(knotlist)
+        out += knotlist[2] - knotlist[1]
     end
 
     return out
@@ -395,7 +395,7 @@ are (in a form that lsqlin will like):
 Multiply these inequalities by (y(i+1) - y(i)) to
 put them into a linear form.
 """
-function construct_monotoncitiy_matrix(monotone_settings::Vector{NamedTuple{(:knotlist, :increasing), Tuple{Tuple{Int, Int}, Bool}}},
+function construct_monotonicity_matrix(monotone_settings::Vector{NamedTuple{(:knotlist, :increasing), Tuple{Tuple{Int, Int}, Bool}}},
                                       nc::Int, nk::Int, dknots::AbstractVector{T}, total_intervals::Int,
                                       Mineq::AbstractMatrix{T}, rhsineq::AbstractVector{T}) where {T <: Real}
     L = length(monotone_settings)
@@ -412,23 +412,23 @@ function construct_monotoncitiy_matrix(monotone_settings::Vector{NamedTuple{(:kn
 
                 M[n + 4, j]          = 3.
                 M[n + 4, j + 1]      = -3.
-                M[n + 4, nk + j]     = -1. / dknots[j]
-                M[n + 4, nk + j + 1] = 1. / dknots[j]
+                M[n + 4, nk + j]     = -1. * dknots[j]
+                M[n + 4, nk + j + 1] = 1. * dknots[j]
 
                 M[n + 5, j]          = 3.
                 M[n + 5, j + 1]      = -3.
-                M[n + 5, nk + j]     = 1. / dknots[j]
-                M[n + 5, nk + j + 1] = -1. / dknots[j]
+                M[n + 5, nk + j]     = 1. * dknots[j]
+                M[n + 5, nk + j + 1] = -1. * dknots[j]
 
                 M[n + 6, j]          = 9.
                 M[n + 6, j + 1]      = -9.
-                M[n + 6, nk + j]     = 1. / dknots[j]
-                M[n + 6, nk + j + 1] = 2. / dknots[j]
+                M[n + 6, nk + j]     = 1. * dknots[j]
+                M[n + 6, nk + j + 1] = 2. * dknots[j]
 
                 M[n + 7, j]          = 9.
                 M[n + 7, j + 1]      = -9.
-                M[n + 7, nk + j]     = 2. / dknots[j]
-                M[n + 7, nk + j + 1] = 1. / dknots[j]
+                M[n + 7, nk + j]     = 2. * dknots[j]
+                M[n + 7, nk + j + 1] = 1. * dknots[j]
             else
                 M[n + 1, j]          = -1.
                 M[n + 1, j + 1]      = 1
@@ -437,23 +437,23 @@ function construct_monotoncitiy_matrix(monotone_settings::Vector{NamedTuple{(:kn
 
                 M[n + 4, j]          = -3.
                 M[n + 4, j + 1]      = 3.
-                M[n + 4, nk + j]     = 1. / dknots[j]
-                M[n + 4, nk + j + 1] = -1. / dknots[j]
+                M[n + 4, nk + j]     = 1. * dknots[j]
+                M[n + 4, nk + j + 1] = -1. * dknots[j]
 
                 M[n + 5, j]          = -3.
                 M[n + 5, j + 1]      = 3.
-                M[n + 5, nk + j]     = -1. / dknots[j]
-                M[n + 5, nk + j + 1] = 1. / dknots[j]
+                M[n + 5, nk + j]     = -1. * dknots[j]
+                M[n + 5, nk + j + 1] = 1. * dknots[j]
 
                 M[n + 6, j]          = -9.
                 M[n + 6, j + 1]      = 9.
-                M[n + 6, nk + j]     = -1. / dknots[j]
-                M[n + 6, nk + j + 1] = -2. / dknots[j]
+                M[n + 6, nk + j]     = -1. * dknots[j]
+                M[n + 6, nk + j + 1] = -2. * dknots[j]
 
                 M[n + 7, j]          = -9.
                 M[n + 7, j + 1]      = 9.
-                M[n + 7, nk + j]     = -2. / dknots[j]
-                M[n + 7, nk + j + 1] = -1. / dknots[j]
+                M[n + 7, nk + j]     = -2. * dknots[j]
+                M[n + 7, nk + j + 1] = -1. * dknots[j]
             end
             n += 7
         end
@@ -486,62 +486,61 @@ end
 
 """
 ```
-set_min_value(min_value::T, nk::Int, nc::Int, Mineq::AbstractMatrix{T}, rhsineq::AbstractVector{T};
-    sample_points::AbstractVector{T} = [.017037, .066987, .1465, .25, .37059,
+set_min_value(min_value::T, nk::Int, nc::Int, dknots::AbstractVector{T}, Mineq::AbstractMatrix{T}, rhsineq::AbstractVector{T};
+    sample_points::AbstractVector{T} = [.017037, .066987, .14645, .25, .37059,
                                         .5, .62941, .75, .85355, .93301, .98296]) where {T <: Real}
 ```
 
 creates the equations enforcing a maximum value for the spline.
 """
-function set_min_value(min_value::T, nk::Int, nc::Int, Mineq::AbstractMatrix{T}, rhsineq::AbstractVector{T};
-                       sample_points::AbstractVector{T} = [.017037, .066987, .1465, .25, .37059,
+function set_min_value(min_value::T, nk::Int, nc::Int, dknots::AbstractVector{T}, Mineq::AbstractMatrix{T}, rhsineq::AbstractVector{T};
+                       sample_points::AbstractVector{T} = [.017037, .066987, .14645, .25, .37059,
                                                            .5, .62941, .75, .85355, .93301, .98296]) where {T <: Real}
 
     # The default sample points are Chebyshev nodes
     nsamp = length(sample_points)
     ntot = nk + (nk - 1) * nsamp
     Mmin = zeros(T, ntot, nc)
-    Mmax = zeros(T, size(Mmin))
 
     # Constrain values at knots
-    for i in 1:nk # This is the same as Mmax[1:nk, 1:nk] = Matrix{T}(I, nk, nk)
-        Mmax[i, i] = 1.
+    for i in 1:nk # This is the same as Min[1:nk, 1:nk] = -Matrix{T}(I, nk, nk)
+        Mmin[i, i] = -1.
     end
 
     # Intermediate sample points
-    t² = tm .^ 2
-    t³ = tm .^ 3
-    s² = (1. .- tm) .^ 2
-    s³ = (1. .- tm) .^ 3
-    vals = [3. .* s² .- 2. .* s³,
+    t² = sample_points .^ 2
+    t³ = sample_points .^ 3
+    s² = (1. .- sample_points) .^ 2
+    s³ = (1. .- sample_points) .^ 3
+    vals = hcat(3. .* s² .- 2. .* s³,
             3. .* t² .- 2. .* t³,
-            -s³ + s², t³ .- t²]
+             s² - s³, t³ .- t²)
 
     for j in 1:(nk - 1)
-        Mmin[1:nsamp + (j - 1) * nsamp + nk, j .+ [0, 1, nk, nk + 1]] =
-            -vals * Diagonal([1, 1, dknots[j], dknots[j]])
+        Mmin[(1:nsamp) .+ ((j - 1) * nsamp + nk), j .+ [0, 1, nk, nk + 1]] =
+            -vals * Diagonal([1., 1., dknots[j], dknots[j]])
     end
 
-    return vcat(Mineq, Mmin), vcat(rhsineq, fill(min_value, ntot))
+    return vcat(Mineq, Mmin), vcat(rhsineq, fill(-min_value, ntot))
 end
 
 """
 ```
-set_max_value(max_value::T, nk::Int, nc::Int, Mineq::AbstractMatrix{T}, rhsineq::AbstractVector{T};
-                     sample_points::AbstractVector{T} = [.017037, .066987, .1465, .25, .37059,
+set_max_value(max_value::T, nk::Int, nc::Int, dknots::AbstractVector{T}, Mineq::AbstractMatrix{T}, rhsineq::AbstractVector{T};
+                     sample_points::AbstractVector{T} = [.017037, .066987, .14645, .25, .37059,
                                                          .5, .62941, .75, .85355, .93301, .98296]) where {T <: Real}
 ```
 
 creates the equations enforcing a maximum value for the spline.
 """
-function set_max_value(max_value::T, nk::Int, nc::Int, Mineq::AbstractMatrix{T}, rhsineq::AbstractVector{T};
-                       sample_points::AbstractVector{T} = [.017037, .066987, .1465, .25, .37059,
+function set_max_value(max_value::T, nk::Int, nc::Int, dknots::AbstractVector{T}, Mineq::AbstractMatrix{T}, rhsineq::AbstractVector{T};
+                       sample_points::AbstractVector{T} = [.017037, .066987, .14645, .25, .37059,
                                                            .5, .62941, .75, .85355, .93301, .98296]) where {T <: Real}
 
     # The default sample points are Chebyshev nodes
     nsamp = length(sample_points)
     ntot = nk + (nk - 1) * nsamp
-    Mmax = zeros(T, size(Mmin))
+    Mmax = zeros(T, ntot, nc)
 
     # Constrain values at knots
     for i in 1:nk # This is the same as Mmax[1:nk, 1:nk] = Matrix{T}(I, nk, nk)
@@ -549,17 +548,17 @@ function set_max_value(max_value::T, nk::Int, nc::Int, Mineq::AbstractMatrix{T},
     end
 
     # Intermediate sample points
-    t² = tm .^ 2
-    t³ = tm .^ 3
-    s² = (1. .- tm) .^ 2
-    s³ = (1. .- tm) .^ 3
-    vals = [3. .* s² .- 2. .* s³,
+    t² = sample_points .^ 2
+    t³ = sample_points .^ 3
+    s² = (1. .- sample_points) .^ 2
+    s³ = (1. .- sample_points) .^ 3
+    vals = hcat(3. .* s² .- 2. .* s³,
             3. .* t² .- 2. .* t³,
-            -s³ + s², t³ .- t²]
+            -s³ + s², t³ .- t²)
 
     # Create equations
     for j in 1:(nk - 1)
-        Mmax[1:nsamp + (j - 1) * nsamp + nk, j .+ [0, 1, nk, nk + 1]] =
+        Mmax[(1:nsamp) .+ ((j - 1) * nsamp + nk), j .+ [0, 1, nk, nk + 1]] =
             vals * Diagonal([1, 1, dknots[j], dknots[j]])
     end
 
@@ -574,7 +573,7 @@ function concave_up_info!(curvature_settings::Vector{NamedTuple{(:concave_up, :r
 adds the properties of an everywhere concave up spline.
 """
 function concave_up_info!(curvature_settings::Vector{NamedTuple{(:concave_up, :range), Tuple{Bool, Vector{T}}}}) where {T <: Real}
-    push!(monotone_settings, (concave_up = true, range = Vector{T}(undef, 0)))
+    push!(curvature_settings, (concave_up = true, range = Vector{T}(undef, 0)))
 end
 
 """
@@ -588,7 +587,7 @@ adds information about interval(s) over which the spline should be concave up.
 function concave_up_intervals_info!(curvature_settings::Vector{NamedTuple{(:concave_up, :range), Tuple{Bool, Vector{T}}}},
                                     concave_up_intervals::AbstractMatrix{T}) where {T <: Real}
     for i in 1:size(concave_up_intervals, 1)
-        push!(monotone_settings, (concave_up = true, range = sort(concave_up_intervals[i, :])))
+        push!(curvature_settings, (concave_up = true, range = sort(concave_up_intervals[i, :])))
     end
 end
 
@@ -599,8 +598,8 @@ function concave_down_info!(curvature_settings::Vector{NamedTuple{(:concave_up, 
 
 adds the properties of an everywhere concave down spline.
 """
-function concave_up_info!(curvature_settings::Vector{NamedTuple{(:concave_up, :range), Tuple{Bool, Vector{T}}}}) where {T <: Real}
-    push!(monotone_settings, (concave_up = false, range = Vector{T}(undef, 0)))
+function concave_down_info!(curvature_settings::Vector{NamedTuple{(:concave_up, :range), Tuple{Bool, Vector{T}}}}) where {T <: Real}
+    push!(curvature_settings, (concave_up = false, range = Vector{T}(undef, 0)))
 end
 
 """
@@ -614,19 +613,35 @@ adds information about interval(s) over which the spline should be concave up.
 function concave_down_intervals_info!(curvature_settings::Vector{NamedTuple{(:concave_up, :range), Tuple{Bool, Vector{T}}}},
                                       concave_down_intervals::AbstractMatrix{T}) where {T <: Real}
     for i in 1:size(concave_down_intervals, 1)
-        push!(monotone_settings, (concave_up = false, range = sort(concave_down_intervals[i, :])))
+        push!(curvature_settings, (concave_up = false, range = sort(concave_down_intervals[i, :])))
     end
 end
 
 """
 ```
+function construct_curvature_matrix(curvature_settings::Vector{NamedTuple{(:concave_up, :range), Tuple{Bool, Vector{T}}}},
+                                    nc::Int, nk::Int, knots::AbstractVector{T}, dknots::AbstractVector{T},
+                                    Mineq::AbstractMatrix{T}, rhsineq::AbstractVector{T}) where {T <: Real}
 ```
+
+creates the inequalities enforcing curvature for the spline
 """
 function construct_curvature_matrix(curvature_settings::Vector{NamedTuple{(:concave_up, :range), Tuple{Bool, Vector{T}}}},
                                     nc::Int, nk::Int, knots::AbstractVector{T}, dknots::AbstractVector{T},
                                     Mineq::AbstractMatrix{T}, rhsineq::AbstractVector{T}) where {T <: Real}
+
     L = length(curvature_settings)
-    M = zeros(T, 0, nc)
+    if L > 1
+        # Then not entirely concave up or down so need to handle construction of M
+        dim1 = nk - 1
+        for i in 1:L
+            end_range = map(a -> max(min(a, knots[end]), knots[1]), curvature_settings[i][:range])
+            dim1 += length(bin_sort(end_range, knots))
+        end
+        M = zeros(T, dim1, nc)
+    else
+        M = zeros(T, nk, nc)
+    end
     n = 0
 
     for i in 1:L
@@ -698,7 +713,7 @@ function construct_curvature_matrix(curvature_settings::Vector{NamedTuple{(:conc
                 end
             end
 
-            end_range = sort(map(a -> max(min(a, knots[end]), knots[1]), curv_setting[:range]))
+            end_range = map(a -> max(min(a, knots[end]), knots[1]), curv_setting[:range])
             ind = bin_sort(end_range, knots)
             t = (end_range - knots[ind]) ./ dknots[ind]
             s = 1. .- t

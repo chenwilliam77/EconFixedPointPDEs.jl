@@ -250,23 +250,23 @@ function SLM_cubic(x::AbstractVector{T}, y::AbstractVector{T}, y_scale::T, y_shi
     if decreasing
         @assert isempty(increasing_intervals) && isempty(decreasing_intervals) "The spline cannot be monotone decreasing and " *
             "have nonempty entries for the keywords increasing_intervals and/or decreasing_intervals"
-        monotone_decreasing!(monotone_settings)
+        total_monotone_intervals += monotone_decreasing!(monotone_settings)
     end
 
     # Decreasing intervals
     if !isempty(decreasing_intervals)
-        decreasing_intervals_info!(monotone_settings, decreasing_intervals)
+        total_monotone_intervals += decreasing_intervals_info!(monotone_settings, decreasing_intervals)
     end
 
     # Add inequalities enforcing monotonicity
     if !isempty(monotone_settings)
-        Mineq, rhsineq = construct_monotoncity_matrix(monotone_settings, nc, nk, dknots, total_monotone_intervals, Mineq, rhsineq)
+        Mineq, rhsineq = construct_monotonicity_matrix(monotone_settings, nc, nk, dknots, total_monotone_intervals, Mineq, rhsineq)
     end
 
     ## Concavity
     @assert !(concave_up && concave_down) "Only one of concave_up and concave_down can be true"
 
-    curvature_settings = Vector{NamedTuple{(:concave_up, :range), Tuple{Bool, }}}(undef, 0)
+    curvature_settings = Vector{NamedTuple{(:concave_up, :range), Tuple{Bool, Vector{T}}}}(undef, 0)
 
     if concave_up
         @assert isempty(concave_up_intervals) && isempty(concave_down_intervals) "The spline cannot be concave up and " *
@@ -288,7 +288,7 @@ function SLM_cubic(x::AbstractVector{T}, y::AbstractVector{T}, y_scale::T, y_shi
         concave_down_intervals_info!(curvature_settings, concave_down_intervals)
     end
 
-    # Add inequalities enforcing monotonicity
+    # Add inequalities enforcing curvature
     if !isempty(curvature_settings)
         Mineq, rhsineq = constuct_curvature_matrix(curvature_settings, nc, nk, dknots, Mineq, rhsineq)
     end
