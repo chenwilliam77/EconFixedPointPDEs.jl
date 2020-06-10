@@ -190,7 +190,6 @@ for (i, name, in_data) in zip(1:3, [:inc, :dec, :sin], [in_inc, in_dec, in_sin])
         concave_up_intervals_info!(curvature_settings, cu_int)
         concave_down_intervals_info!(curvature_settings, cd_int)
     end
-    println( curvature_settings)
     Mineq[name], rhsineq[name] = construct_curvature_matrix(curvature_settings, Int(in_data["nc"]), Int(in_data["nk"]), vec(in_data["knots"]),
                                                               vec(in_data["dx"]), Mineq[name], rhsineq[name])
 end
