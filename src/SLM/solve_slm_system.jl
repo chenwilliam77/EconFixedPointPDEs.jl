@@ -1,3 +1,4 @@
+# DOCUMENT THIS, ALSO ADD OPTIONS TO ACTUALLY PASS SETTINGS INTO IPOPT
 function solve_slm_system(Mdes::AbstractMatrix{S}, rhs::AbstractVector{S},
                           Mreg::AbstractMatrix{S}, rhsreg::AbstractVector{S},
                           λ::S, Meq::AbstractMatrix{S}, rhseq::AbstractVector{S},

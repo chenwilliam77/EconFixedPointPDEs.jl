@@ -7,7 +7,7 @@ default_slm_kwargs!
 
 adds the default keyword arguments for an SLM object.
 """
-function default_slm_kwargs!(kwargs::Dict)
+function default_slm_kwargs!(kwargs::Dict, T::Type)
 
     # degree
     if !haskey(kwargs, :degree)
@@ -36,7 +36,7 @@ function default_slm_kwargs!(kwargs::Dict)
 
     # Regularization parameter
     if !haskey(kwargs, :λ)
-        kwargs[:λ] = 1e-4
+        kwargs[:λ] = convert(T, 1e-4)
     end
 
     # Monotonicity
@@ -49,11 +49,11 @@ function default_slm_kwargs!(kwargs::Dict)
     end
 
     if !haskey(kwargs, :increasing_intervals)
-        kwargs[:increasing_intervals] = Matrix{Float64}(undef, 0, 0)
+        kwargs[:increasing_intervals] = Matrix{T}(undef, 0, 0)
     end
 
     if !haskey(kwargs, :decreasing_intervals)
-        kwargs[:decreasing_intervals] = Matrix{Float64}(undef, 0, 0)
+        kwargs[:decreasing_intervals] = Matrix{T}(undef, 0, 0)
     end
 
     # Curvature
@@ -66,11 +66,11 @@ function default_slm_kwargs!(kwargs::Dict)
     end
 
     if !haskey(kwargs, :concave_up_intervals)
-        kwargs[:concave_up_intervals] = Matrix{Float64}(undef, 0, 0)
+        kwargs[:concave_up_intervals] = Matrix{T}(undef, 0, 0)
     end
 
     if !haskey(kwargs, :concave_down_intervals)
-        kwargs[:concave_down_intervals] = Matrix{Float64}(undef, 0, 0)
+        kwargs[:concave_down_intervals] = Matrix{T}(undef, 0, 0)
     end
 
     # End point values
@@ -92,8 +92,12 @@ function default_slm_kwargs!(kwargs::Dict)
     end
 
     if !haskey(kwargs, :min_max_sample_points)
-        kwargs[:min_max_sample_points] = [.017037, .066987, .14645, .25, .37059,
-                                          .5, .62941, .75, .85355, .93301, .98296]
+        kwargs[:min_max_sample_points] = convert(Vector{T}, [.017037, .066987, .14645, .25, .37059,
+                                                             .5, .62941, .75, .85355, .93301, .98296])
+    end
+
+    if !haskey(kwargs, :init)
+        kwargs[:init] = Vector{T}(undef, 0)
     end
 
     return kwargs

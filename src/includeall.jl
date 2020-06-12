@@ -6,7 +6,7 @@ using EconPDEs: StateGrid
 using NLPModels: ADNLSModel, LLSModel# , FeasibilityFormNLS, @lencheck, AbstractNLSModel, NLPModelMeta, NLSMeta, NLSCounters
 # import NLPModels: hess_structure!, jac_structure!, hess_coord!, jac_coord!, jac_structure_residual!, hess_structure_residual!
 
-import Base: getindex, eltype
+import Base: eltype, getindex
 import DiffEqBase: initialize!, solve
 
 # src/ directory

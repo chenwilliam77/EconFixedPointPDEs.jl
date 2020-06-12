@@ -16,8 +16,7 @@ or below the minimum value of the function will be returned as a NaN.
 
 Currently, no constant extrapolation is supported.
 """
-function eval(slm::SLM{T}, x::AbstractVector{T}, evalmode::Int = 0;
-              issorted::Bool = true) where {T <: Real}
+function eval(slm::SLM{T}, x::AbstractVector{T}, evalmode::Int = 0) where {T <: Real}
 
     ## Set up
     nₓ     = length(x)
@@ -25,13 +24,6 @@ function eval(slm::SLM{T}, x::AbstractVector{T}, evalmode::Int = 0;
     nk     = length(knots)
     dknots = diff(knots)
     coef   = get_coef(slm)
-
-    # Do I need to sort x?
-    # if !issorted
-    #     x_perm = sortperm(x)
-    #     x₀ = x
-    #     x  = x[x_perm]
-    # end
 
     # Extrapolation
     if slm[:extrap] != :none
@@ -45,13 +37,13 @@ function eval(slm::SLM{T}, x::AbstractVector{T}, evalmode::Int = 0;
 
     if get_type(slm) == :cubic
         y = if evalmode == 0
-            eval_cubic(x, knots, xknots, coef, x_bins)
+            eval_cubic(x, knots, dknots, coef, x_bins)
         elseif evalmode == 1
-            eval_cubic_derivative_1(x, knots, xknots, coef, x_bins)
+            eval_cubic_derivative_1(x, knots, dknots, coef, x_bins)
         elseif evalmode == 2
-            eval_cubic_derivative_2(x, knots, xknots, coef, x_bins)
+            eval_cubic_derivative_2(x, knots, dknots, coef, x_bins)
         elseif evalmode == 3
-            eval_cubic_derivative_3(x, knots, xknots, coef, x_bins)
+            eval_cubic_derivative_3(x, knots, dknots, coef, x_bins)
         elseif evalmode == -1
             error("The function inverse has not been implemented yet.")
         else
@@ -60,13 +52,6 @@ function eval(slm::SLM{T}, x::AbstractVector{T}, evalmode::Int = 0;
     else
         error("Cannot use the spline type $(get_type(slm))")
     end
-
-    # if !issorted
-    #     unsorted_val = similar(sorted_val)
-    #     for (i, p) in enumerate(x_perm)
-    #         unsorted_val[p] = sorted_val[i]
-    #     end
-    # end
 
     return y
 end
@@ -100,15 +85,13 @@ function eval_cubic_derivative_1(x::AbstractVector{T}, knots::AbstractVector{T},
     s  = 1. .- t
     s² = (1. .- t) .^ 2
 
-
     # No extrapolation yet so directly return
     x_bins_up = x_bins .+ 1
 
-    return coef[x_bins, 2] .* (2. .* s - 3. .* s²) +
-            coef[x_bins_up, 2] .* (3. .* t² - 2. .* t) +
-            (coef[x_bins, 1] .* 6. .* (-s + s²) +
-             coef[x_bins_up, 1] .* 6 .* (t - t²)) ./ dknots[x_bins]
-
+    return coef[x_bins, 2] .* (3. .* s² - 2. .* s) +
+        coef[x_bins_up, 2] .* (3. .* t² - 2. .* t) +
+        6 .* (coef[x_bins, 1] .* (-s + s²) +
+              coef[x_bins_up, 1] .* (t - t²)) ./ dknots[x_bins]
 end
 
 function eval_cubic_derivative_2(x::AbstractVector{T}, knots::AbstractVector{T}, dknots::AbstractVector{T},

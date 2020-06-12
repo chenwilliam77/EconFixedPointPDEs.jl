@@ -105,7 +105,7 @@ function SLM(x::AbstractVector{T}, y::AbstractVector{T}; calculate_stats::Bool =
     end
 
     # Add default keyword arguments
-    default_slm_kwargs!(kwargs)
+    default_slm_kwargs!(kwargs, T)
 
     # Scale y. This updates the kwargs
     ŷ = scale_problem!(x, y, kwargs)
@@ -115,7 +115,7 @@ function SLM(x::AbstractVector{T}, y::AbstractVector{T}; calculate_stats::Bool =
     elseif kwargs[:degree] == 1
         error("degree 1 has not been implemented")
     elseif kwargs[:degree] == 3
-        SLM_cubic(x, ŷ, kwargs[:y_scale], kwargs[:y_shift];
+        SLM_cubic(x, ŷ, kwargs[:y_scale], kwargs[:y_shift]; init = kwargs[:init],
                   nk = kwargs[:knots], C2 = kwargs[:C2], λ = kwargs[:λ], increasing = kwargs[:increasing],
                   decreasing = kwargs[:decreasing], increasing_intervals = kwargs[:increasing_intervals],
                   decreasing_intervals = kwargs[:decreasing_intervals],
@@ -157,6 +157,7 @@ function SLM(x::AbstractVector{T}, y::AbstractVector{T}; calculate_stats::Bool =
 end
 
 function SLM_cubic(x::AbstractVector{T}, y::AbstractVector{T}, y_scale::T, y_shift::T;
+                   init::AbstractVector{T} = Vector{T}(undef, 0),
                    nk::Int = 6, C2::Bool = true, λ::T = 1e-4, increasing::Bool = false, decreasing::Bool = false,
                    increasing_intervals::AbstractMatrix{T} = Matrix{T}(undef, 0, 0),
                    decreasing_intervals::AbstractMatrix{T} = Matrix{T}(undef, 0, 0),
@@ -304,7 +305,7 @@ function SLM_cubic(x::AbstractVector{T}, y::AbstractVector{T}, y_scale::T, y_shi
     # Currently, we only implement the standard regularizer parameter, while
     # SLM allows matching a specified RMSE and cross-validiation, too.
     coef = solve_slm_system(Mdes, rhs, Mreg, rhsreg, λ,
-                            Meq, rhseq, Mineq, rhsineq)
+                            Meq, rhseq, Mineq, rhsineq; init = init)
     coef = reshape(coef, nk, 2)
 
     ## Calculate model statistics
