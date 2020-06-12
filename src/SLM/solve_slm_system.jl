@@ -36,22 +36,22 @@ function solve_slm_system(Mdes::AbstractMatrix{S}, rhs::AbstractVector{S},
 
         if use_adnls
             if use_sparse
-                Mdes = sparse(Mdes)
+                Mfit = sparse(Mfit)
             end
-            F(x) = Mdes * x - rhs
 
             if isempty(init)
-                init = zeros(S, size(Mdes, 2))
+                init = zeros(S, size(Mfit, 2))
             end
 
-            nls = ADNLSModel(F, init, size(Mdes, 1), c = x -> C * x, lcon = lcon, ucon = ucon) # THIS WORKS BUT LETS TRY MANUALLY DEFINING THE HESS_STRUCTURE
+            nls = ADNLSModel(x -> Mfit * x - rhsfit, init, size(Mfit, 1), c = x -> C * x, lcon = lcon, ucon = ucon)
         else
-            error("Using LLSModel does not work yet.")
-            nls = LLSModel(Mdes, rhs; C = C, lcon = lcon, ucon = ucon) # THIS WORKS BUT LETS TRY MANUALLY DEFINING THE HESS_STRUCTURE
+            # error("Using LLSModel does not work yet.")
+            nls = LLSMatrixModel(Mfit, rhsfit; C = C, lcon = lcon, ucon = ucon)
         end
 
         # Decide solver for minimizing the constrained linear least-squares problem
         if method == :ipopt
+            # coef = ipopt(FeasibilityFormNLS(nls); print_level = verbose == :high ? 3 : 0).solution # FeasibilityFormNLS appears slower w/ipopt b/c too many allocations
             coef = ipopt(nls; print_level = verbose == :high ? 3 : 0).solution
         else
             error("Method $method not is not implemented.")

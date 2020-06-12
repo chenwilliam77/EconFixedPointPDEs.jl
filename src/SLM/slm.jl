@@ -42,9 +42,9 @@ mutable struct SLM{T} <: AbstractSLM{T}
 end
 
 function Base.show(io::IO, slm::AbstractSLM{T}) where {T <: Real}
-    @printf io "SLM with element type %s" string(T)
-    @printf io "degree: %i" get_stats(slm)[:degree]
-    @printf io "knots:  %i" length(get_stats(slm)[:knots])
+    @printf io "SLM with element type %s\n" string(T)
+    @printf io "degree: %i\n" get_stats(slm)[:degree]
+    @printf io "knots:  %i\n" length(get_stats(slm)[:knots])
 end
 
 # Access functions
@@ -85,7 +85,7 @@ function SLM(x::AbstractVector{T}, y::AbstractVector{T}; calculate_stats::Bool =
     if verbose == :high
         calculate_stats = true # Statistics will be calculated if verbose is high
     end
-    kwargs = Dict(kwargs)
+    kwargs = Dict{Symbol, Any}(kwargs)
 
     # Remove nans
     to_remove = isnan.(x) .| isnan.(y)
@@ -110,38 +110,33 @@ function SLM(x::AbstractVector{T}, y::AbstractVector{T}; calculate_stats::Bool =
     # Scale y. This updates the kwargs
     ŷ = scale_problem!(x, y, kwargs)
 
-    # Determine appropriate fit type
     slm = if kwargs[:degree] == 0
         error("degree 0 has not been implemented")
     elseif kwargs[:degree] == 1
         error("degree 1 has not been implemented")
     elseif kwargs[:degree] == 3
-
-        return SLM_cubic(x, ŷ, y_scale, y_shift;
-                         nk = kwargs[:knots], C2 = kwargs[:C2], λ = kwargs[:λ], increasing = kwargs[:increasing],
-                         decreasing = kwargs[:decreasing], increasing_intervals = kwargs[:increasing_intervals],
-                         decreasing_intervals = kwargs[:decreasing_intervals],
-                         concave_up = kwargs[:concave_up], concave_down = kwargs[:concave_down],
-                         concave_up_intervals = kwargs[:concave_up_intervals],
-                         concave_down_intervals = kwargs[:concave_down_intervals],
-                         left_value = kwargs[:left_value], right_value = kwargs[:right_value],
-                         min_value = kwargs[:min_value], max_value = kwargs[:max_value],
-                         min_max_sample_points = kwargs[:min_max_sample_points])
+        SLM_cubic(x, ŷ, kwargs[:y_scale], kwargs[:y_shift];
+                  nk = kwargs[:knots], C2 = kwargs[:C2], λ = kwargs[:λ], increasing = kwargs[:increasing],
+                  decreasing = kwargs[:decreasing], increasing_intervals = kwargs[:increasing_intervals],
+                  decreasing_intervals = kwargs[:decreasing_intervals],
+                  concave_up = kwargs[:concave_up], concave_down = kwargs[:concave_down],
+                  concave_up_intervals = kwargs[:concave_up_intervals],
+                  concave_down_intervals = kwargs[:concave_down_intervals],
+                  left_value = kwargs[:left_value], right_value = kwargs[:right_value],
+                  min_value = kwargs[:min_value], max_value = kwargs[:max_value],
+                  min_max_sample_points = kwargs[:min_max_sample_points])
     else
         error("degree $(kwargs[:degree]) has not been implemented")
     end
 
-    # Scaling on -> shift/scale coefficients back
+    if calculate_stats
+        # Need to write a function that calculates stats like total df or R²
+    end
+
     if kwargs[:scaling]
         coef = get_coef(slm)
-        if isa(coef, AbstractMatrix)
-            coef[:, 1] .-= kwargs[:y_shift]
-            coef[:, 1] ./= kwargs[:y_scale]
-            coef[:, 2] ./= kwargs[:y_scale]
-        else
-            coef .-= kwargs[:y_shift]
-            coef ./= kwargs[:y_scale]
-        end
+        coef[:, 1] .-= kwargs[:y_shift]
+        coef       ./= kwargs[:y_scale]
     end
 
     if verbose == :high
@@ -194,14 +189,14 @@ function SLM_cubic(x::AbstractVector{T}, y::AbstractVector{T}, y_scale::T, y_shi
     ## Build design matrix
 
     # Bin data so that xbin has nₓ and xbin specifies into which bin each x value falls
-    xbin = bin_sort(x, nk)
+    xbin = bin_sort(x, knots)
 
     # design matrix
     Mdes = construct_design_matrix(x, knots, dknots, xbin, nₓ, nk, nc)
     rhs = y
 
     ## Regularizer
-    Mreg = regularizer(dknots, nk)
+    Mreg = construct_regularizer(dknots, nk)
     rhsreg = zeros(T, nk)
 
     ## C2 continuity across knots
@@ -218,14 +213,13 @@ function SLM_cubic(x::AbstractVector{T}, y::AbstractVector{T}, y_scale::T, y_shi
         Meq, rhseq = set_right_value(right_value, nc, nk, Meq, rhseq)
     end
 
-
     # Global minimum and maximum values
     if !isnan(min_value)
-        Mineq, rhsineq = set_min_value(min_value, nk, nc, Mineq, rhsineq; sample_points = min_max_sample_points)
+        Mineq, rhsineq = set_min_value(min_value, nk, nc, dknots, Mineq, rhsineq; sample_points = min_max_sample_points)
     end
 
     if !isnan(max_value)
-        Mineq, rhsineq = set_max_value(max_value, nk, nc, Mineq, rhsineq; sample_points = min_max_sample_points)
+        Mineq, rhsineq = set_max_value(max_value, nk, nc, dknots, Mineq, rhsineq; sample_points = min_max_sample_points)
     end
 
     ## Monotonicity restrictions
@@ -250,12 +244,12 @@ function SLM_cubic(x::AbstractVector{T}, y::AbstractVector{T}, y_scale::T, y_shi
     if decreasing
         @assert isempty(increasing_intervals) && isempty(decreasing_intervals) "The spline cannot be monotone decreasing and " *
             "have nonempty entries for the keywords increasing_intervals and/or decreasing_intervals"
-        total_monotone_intervals += monotone_decreasing!(monotone_settings)
+        total_monotone_intervals += monotone_decreasing!(monotone_settings, nk)
     end
 
     # Decreasing intervals
     if !isempty(decreasing_intervals)
-        total_monotone_intervals += decreasing_intervals_info!(monotone_settings, decreasing_intervals)
+        total_monotone_intervals += decreasing_intervals_info!(monotone_settings, knots, decreasing_intervals, nk)
     end
 
     # Add inequalities enforcing monotonicity
@@ -280,22 +274,35 @@ function SLM_cubic(x::AbstractVector{T}, y::AbstractVector{T}, y_scale::T, y_shi
         concave_down_info!(curvature_settings)
     end
 
-    if concave_up_intervals
+    if !isempty(concave_up_intervals)
         concave_up_intervals_info!(curvature_settings, concave_up_intervals)
     end
 
-    if concave_down_intervals
+    if !isempty(concave_down_intervals)
         concave_down_intervals_info!(curvature_settings, concave_down_intervals)
     end
 
     # Add inequalities enforcing curvature
     if !isempty(curvature_settings)
-        Mineq, rhsineq = constuct_curvature_matrix(curvature_settings, nc, nk, dknots, Mineq, rhsineq)
+        Mineq, rhsineq = construct_curvature_matrix(curvature_settings, nc, nk, knots, dknots, Mineq, rhsineq)
     end
 
-    ## Dispatch to the appropriate regularizer
-    #  Currently, we only implement the standard regularizer parameter, while
-    #  SLM allows matching a specified RMSE and cross-validiation, too.
+    # scale equalities for unit absolute row sum
+    if !isempty(Meq)
+        rs = Diagonal(vec(1. ./ sum(abs.(Meq), dims = 2)))
+        Meq = rs * Meq
+        rhseq = rs * rhseq
+    end
+
+    # scale equalities for unit absolute row sum
+    if !isempty(Mineq)
+        rs = Diagonal(vec(1. ./ sum(abs.(Mineq), dims = 2)))
+        Mineq = rs * Mineq
+        rhsineq = rs * rhsineq
+    end
+
+    # Currently, we only implement the standard regularizer parameter, while
+    # SLM allows matching a specified RMSE and cross-validiation, too.
     coef = solve_slm_system(Mdes, rhs, Mreg, rhsreg, λ,
                             Meq, rhseq, Mineq, rhsineq)
     coef = reshape(coef, nk, 2)
@@ -306,5 +313,5 @@ function SLM_cubic(x::AbstractVector{T}, y::AbstractVector{T}, y_scale::T, y_shi
              y_scale = y_scale, y_shift = y_shift)
 
     # Unpack coefficients into the result structure
-    return SLM{T}(stat, :cubic, x, y, knots, coef, :none)
+    return SLM{T}(stats, :cubic, x, y, knots, coef, :none)
 end

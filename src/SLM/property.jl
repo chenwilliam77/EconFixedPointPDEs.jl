@@ -158,6 +158,18 @@ function scale_problem!(x::AbstractVector, y::AbstractVector, kwargs::Dict)
             kwargs[:right_value] *= y_scale
             kwargs[:right_value] += y_shift
         end
+
+        # left_value
+        if haskey(kwargs, :min_value)
+            kwargs[:min_value] *= y_scale
+            kwargs[:min_value] += y_shift
+        end
+
+        # max_value
+        if haskey(kwargs, :max_value)
+            kwargs[:max_value] *= y_scale
+            kwargs[:max_value] += y_shift
+        end
     else
         y_shift = 0.
         y_scale = 1.

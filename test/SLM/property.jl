@@ -13,6 +13,8 @@ d = Dict()
 default_slm_kwargs!(d)
 d[:left_value] = input_inc["p0_norun"]
 d[:right_value] = input_inc["p1_norun"]
+d[:min_value] = input_inc["p0_norun"]
+d[:max_value] = input_inc["p1_norun"]
 
 # Scale problem
 @testset "Scaling" begin
@@ -31,14 +33,17 @@ d[:right_value] = input_inc["p1_norun"]
         else
             ŷ = scale_problem!(vec(in_data["x"]), vec(in_data["y"]), d)
         end
-        if i == 1
-            @test d[:left_value] == leftval_inc["left_value"]
-            @test d[:right_value] == rightval_inc["right_value"]
-        end
 
         @test d[:y_scale] == yscale_data["YScale"]
         @test d[:y_shift] == yscale_data["YShift"]
         @test ŷ           == vec(yscale_data["yhat"])
+
+        if i == 1
+            @test d[:left_value] == leftval_inc["left_value"]
+            @test d[:right_value] == rightval_inc["right_value"]
+            @test d[:min_value] == in_data["p0_norun"] * d[:y_scale] + d[:y_shift]
+            @test d[:max_value] == in_data["p1_norun"] * d[:y_scale] + d[:y_shift]
+        end
     end
     @test vec(in_inc["y"]) == scale_problem!(vec(in_inc["x"]), vec(in_inc["y"]), d_false)
     @test d_false[:left_value] == input_inc["p0_norun"]
