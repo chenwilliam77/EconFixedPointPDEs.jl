@@ -9,21 +9,6 @@ in_sin = load(joinpath(rp, "solve_slm_system_sine.jld2"))
 in_sinnoineq = load(joinpath(rp, "solve_slm_system_sinenoineq.jld2"))
 noconstraints = load(joinpath(rp, "solve_slm_system_noconstraints.jld2"))
 
-#=println("No sparse matrices")
-@btime begin
-    solve_slm_system(in_inc["Mdes"], vec(in_inc["rhs"]), in_inc["Mreg"],
-                     vec(in_inc["rhsreg"]), in_inc["finalRP"], in_inc["Meq"], vec(in_inc["rhseq"]),
-                     in_inc["Mineq"], vec(in_inc["rhsineq"]))
-end
-
-println("Sparse matrices")
-@btime begin
-    solve_slm_system(in_inc["Mdes"], vec(in_inc["rhs"]), in_inc["Mreg"],
-                     vec(in_inc["rhsreg"]), in_inc["finalRP"], in_inc["Meq"], vec(in_inc["rhseq"]),
-                     in_inc["Mineq"], vec(in_inc["rhsineq"]); use_sparse = true)
-end
-=#
-
 # Run tests
 @testset "Coefficients of least-square spline" begin
     for in_data in [in_inc, in_dec, in_sin, in_sinnoineq]
@@ -39,3 +24,40 @@ end
                                                     Matrix{Float64}(undef, 0, 0), Vector{Float64}(undef, 0),
                                                     in_sinnoineq["Mineq"], vec(in_sinnoineq["rhsineq"]))
 end
+
+#=
+println("No sparse matrices")
+@btime begin
+    solve_slm_system(in_inc["Mdes"], vec(in_inc["rhs"]), in_inc["Mreg"],
+                     vec(in_inc["rhsreg"]), in_inc["finalRP"], in_inc["Meq"], vec(in_inc["rhseq"]),
+                     in_inc["Mineq"], vec(in_inc["rhsineq"]))
+end
+
+println("Sparse matrices")
+@btime begin
+    solve_slm_system(in_inc["Mdes"], vec(in_inc["rhs"]), in_inc["Mreg"],
+                     vec(in_inc["rhsreg"]), in_inc["finalRP"], in_inc["Meq"], vec(in_inc["rhseq"]),
+                     in_inc["Mineq"], vec(in_inc["rhsineq"]); use_sparse = true)
+end
+println("Adding an initial guess for coefficients")
+@btime begin
+    solve_slm_system(in_inc["Mdes"], vec(in_inc["rhs"]), in_inc["Mreg"],
+                     vec(in_inc["rhsreg"]), in_inc["finalRP"], in_inc["Meq"], vec(in_inc["rhseq"]),
+                     in_inc["Mineq"], vec(in_inc["rhsineq"]); use_sparse = true,
+                     init = vec(in_inc["coef"]))
+end
+
+println("Use LLS")
+@btime begin
+    solve_slm_system(in_inc["Mdes"], vec(in_inc["rhs"]), in_inc["Mreg"],
+                     vec(in_inc["rhsreg"]), in_inc["finalRP"], in_inc["Meq"], vec(in_inc["rhseq"]),
+                     in_inc["Mineq"], vec(in_inc["rhsineq"]))
+end
+
+println("Use ADNLS")
+@btime begin
+    solve_slm_system(in_inc["Mdes"], vec(in_inc["rhs"]), in_inc["Mreg"],
+                     vec(in_inc["rhsreg"]), in_inc["finalRP"], in_inc["Meq"], vec(in_inc["rhseq"]),
+                     in_inc["Mineq"], vec(in_inc["rhsineq"]); use_lls = false)
+end
+=#

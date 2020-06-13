@@ -163,7 +163,7 @@ function SLM(x::AbstractVector{T}, y::AbstractVector{T}; calculate_stats::Bool =
                   left_value = kwargs[:left_value], right_value = kwargs[:right_value],
                   min_value = kwargs[:min_value], max_value = kwargs[:max_value],
                   min_max_sample_points = kwargs[:min_max_sample_points],
-                  use_sparse = kwargs[:use_sparse])
+                  use_sparse = kwargs[:use_sparse], use_lls = kwargs[:use_lls])
     else
         error("degree $(kwargs[:degree]) has not been implemented")
     end
@@ -207,7 +207,7 @@ function SLM_cubic(x::AbstractVector{T}, y::AbstractVector{T}, y_scale::T, y_shi
                    min_value::T = NaN, max_value::T = NaN,
                    min_max_sample_points::AbstractVector{T} = [.017037, .066987, .1465, .25, .37059,
                                                                .5, .62941, .75, .85355, .93301, .98296],
-                   use_sparse::Bool = false) where {T <: Real}
+                   use_sparse::Bool = false, use_lls::Bool = true) where {T <: Real}
 
     nₓ = length(x)
 
@@ -348,7 +348,8 @@ function SLM_cubic(x::AbstractVector{T}, y::AbstractVector{T}, y_scale::T, y_shi
     # Currently, we only implement the standard regularizer parameter, while
     # SLM allows matching a specified RMSE and cross-validiation, too.
     coef = solve_slm_system(Mdes, rhs, Mreg, rhsreg, λ,
-                            Meq, rhseq, Mineq, rhsineq; init = init)
+                            Meq, rhseq, Mineq, rhsineq; init = init,
+                            use_lls = use_lls)
     coef = reshape(coef, nk, 2)
 
     ## Calculate model statistics

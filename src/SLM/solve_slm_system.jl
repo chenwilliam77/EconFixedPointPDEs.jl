@@ -7,7 +7,7 @@ function solve_slm_system(Mdes::AbstractMatrix{S}, rhs::AbstractVector{S},
                           method::Symbol = :ipopt, atol::S = NaN, rtol::S = NaN,
                           max_iter::Int = 0, max_time::S = 30.,
                           init::AbstractVector{S} = Vector{S}(undef, 0),
-                          use_adnls::Bool = true, use_sparse::Bool = true,
+                          use_lls::Bool = true, use_sparse::Bool = true,
                           verbose::Symbol = :low) where {S <: Real}
 ```
 
@@ -46,7 +46,7 @@ where `Mfit = vcat(Mdes, λ .* Mreg)` and `rhsfit = vcat(rhs, λ .* rhsreg)`.
 - `max_iter`: maximum number of evaluations
 - `max_time`: maximum time (in minutes) for optimization
 - `init`: initial guess of coefficients for the spline
-- `use_adnls`: use an `ADNLSModel` to define the problem. Currently, using an `LLSModel` (or equivalent) does not work.
+- `use_lls`: use an `ADNLSModel` to define the problem. Currently, using an `LLSModel` (or equivalent) does not work.
     See the `NLPModels.jl` package.
 - `use_sparse`: use sparse matrices (assuming the inputs are not already sparse matrices)
 - `verbose`: how much information will be printed. Can be `:low` or `:high`
@@ -58,7 +58,7 @@ function solve_slm_system(Mdes::AbstractMatrix{S}, rhs::AbstractVector{S},
                           method::Symbol = :ipopt, atol::S = 1e-8, rtol::S = 1e-6,
                           max_iter::Int = 3000, max_time::S = 3600.,
                           init::AbstractVector{S} = Vector{S}(undef, 0),
-                          use_adnls::Bool = true, use_sparse::Bool = true,
+                          use_lls::Bool = true, use_sparse::Bool = true,
                           verbose::Symbol = :low, kwargs...) where {S <: Real}
 
     if use_sparse && all([issparse(x) for x in [Mdes, Mreg, Meq, Mineq]])
@@ -88,22 +88,29 @@ function solve_slm_system(Mdes::AbstractMatrix{S}, rhs::AbstractVector{S},
             C = use_sparse ? vcat(sparse(Mineq), sparse(Meq)) : vcat(Mineq, Meq)
         end
 
-        if use_adnls
+        if use_lls
+            nls = LLSModel(Mfit, rhsfit; C = C, lcon = lcon, ucon = ucon)
+        else
             if isempty(init)
                 init = zeros(S, size(Mfit, 2))
             end
 
             nls = ADNLSModel(x -> Mfit * x - rhsfit, init, size(Mfit, 1), c = x -> C * x, lcon = lcon, ucon = ucon)
-        else
-            error("Using LLSModel does not work yet.")
-            nls = LLSMatrixModel(Mfit, rhsfit; C = C, lcon = lcon, ucon = ucon)
         end
 
         # Decide solver for minimizing the constrained linear least-squares problem
         if method == :ipopt
-            # coef = ipopt(FeasibilityFormNLS(nls); print_level = verbose == :high ? 3 : 0).solution # FeasibilityFormNLS appears slower w/ipopt b/c too many allocations
-            coef = ipopt(nls; print_level = verbose == :high ? 3 : 0, tol = atol, acceptable_tol = rtol,
-                         max_iter = max_iter, max_cpu_time = max_time, kwargs...).solution
+            if use_lls
+                # Feasibility Form adds additional coefficient which we don't want, hence
+                # the [1:size(Mdes, 2)] slicing.
+                coef = ipopt(FeasibilityFormNLS(nls); print_level = verbose == :high ? 3 : 0,
+                             tol = atol, acceptable_tol = rtol, max_iter = max_iter,
+                             max_cpu_time = max_time, kwargs...).solution[1:size(Mdes, 2)]
+            else
+                #
+                coef = ipopt(nls; print_level = verbose == :high ? 3 : 0, tol = atol, acceptable_tol = rtol,
+                             max_iter = max_iter, max_cpu_time = max_time, kwargs...).solution
+            end
         else
             error("Method $method not is not implemented.")
         end

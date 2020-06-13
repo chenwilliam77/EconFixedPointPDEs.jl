@@ -1,4 +1,3 @@
-# NEED TO TEST IF USING SPARSE MATRICES IS FASTER, AND ADD THIS OPTION TO ALL THE PROPERTIES
 using Test, FileIO
 include("../../src/includeall.jl")
 
@@ -17,22 +16,6 @@ inc_int = [0 π/2; 3*π/2 5*π/2; 7*π/2 4*pi]
 dec_int = [π/2 3*π/2; 5*π/2 7*π/2]
 test_inc = load(joinpath(rp, "solve_slm_system.jld2"))
 scale_inc = load(joinpath(rp, "scaleproblem.jld2"))
-
-
-println("No sparse matrices")
-@btime begin
-    SLM(vec(in_sin["x"]), vec(in_sin["y"]); knots = Int(in_sin["knots"]),
-        increasing_intervals = inc_int, decreasing_intervals = dec_int,
-        concave_up_intervals = cu_int, concave_down_intervals = cd_int,
-        right_value = 0., left_value = 0.)
-end
-println("Sparse matrices")
-@btime begin
-    SLM(vec(in_sin["x"]), vec(in_sin["y"]); knots = Int(in_sin["knots"]),
-        increasing_intervals = inc_int, decreasing_intervals = dec_int,
-        concave_up_intervals = cu_int, concave_down_intervals = cd_int,
-        right_value = 0., left_value = 0., use_sparse = true)
-end
 
 @testset "SLM estimation" begin
     for (i, in_data, out_data) in zip(1:4, [in_inc, in_dec, in_sin, in_sinnoineq], [out_inc, out_dec, out_sin, out_sinnoineq])
@@ -62,3 +45,20 @@ end
         end
     end
 end
+
+#=
+println("No sparse matrices")
+@btime begin
+    SLM(vec(in_sin["x"]), vec(in_sin["y"]); knots = Int(in_sin["knots"]),
+        increasing_intervals = inc_int, decreasing_intervals = dec_int,
+        concave_up_intervals = cu_int, concave_down_intervals = cd_int,
+        right_value = 0., left_value = 0.)
+end
+println("Sparse matrices")
+@btime begin
+    SLM(vec(in_sin["x"]), vec(in_sin["y"]); knots = Int(in_sin["knots"]),
+        increasing_intervals = inc_int, decreasing_intervals = dec_int,
+        concave_up_intervals = cu_int, concave_down_intervals = cd_int,
+        right_value = 0., left_value = 0., use_sparse = true)
+end
+=#

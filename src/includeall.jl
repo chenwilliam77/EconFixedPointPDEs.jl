@@ -1,10 +1,14 @@
-using Dierckx, DifferentialEquations, FastGaussQuadrature, FileIO, ForwardDiff, Interpolations, JLD2, LinearAlgebra
-using ModelConstructors, NLsolve, NLPModelsIpopt, OrderedCollections, Printf, Random, Roots
+# using DifferentialEquations,
+using FastGaussQuadrature, FileIO, ForwardDiff, Interpolations, JLD2, LinearAlgebra
+using ModelConstructors, NLsolve, NLPModelsIpopt, OrderedCollections, OrdinaryDiffEq, Printf, Random, Roots
 using SparseArrays, StatsBase, VectorizedRoutines.Matlab
 
 using EconPDEs: StateGrid
-using NLPModels: ADNLSModel, LLSModel# , FeasibilityFormNLS, @lencheck, AbstractNLSModel, NLPModelMeta, NLSMeta, NLSCounters
-# import NLPModels: hess_structure!, jac_structure!, hess_coord!, jac_coord!, jac_structure_residual!, hess_structure_residual!
+using NLPModels: ADNLSModel, LLSModel , FeasibilityFormNLS#, @lencheck, AbstractNLSModel, NLPModelMeta, NLSMeta, NLSCounters
+# import NLPModels: hess_structure!, jac_structure!, hess_coord!, jac_coord!, jac_structure_residual!, hess_structure_residual!,
+#     FeasibilityFormNLS
+# ADD STATICARRAYS TO REPLACE THE VECTORS ON WHICH WE ARE ITERATING, ALSO TO MAKE NOJUMP ODE FASTER, also LuxurySparse
+# for sparse equivalent
 
 import Base: eltype, getindex
 import DiffEqBase: initialize!, solve
@@ -34,23 +38,10 @@ include("models/li2020/eqcond.jl")
 include("models/li2020/initialize.jl")
 include("models/li2020/subspecs.jl")
 
-#=
 
-# Copy implementing of LLSMatrixModel, which has hess_structure! implemented.
+# Copy implementation of LLSMatrixModel, which has hess_structure! implemented.
 # However, it appears not to work properly
-abstract type AbstractLLSModel <: AbstractNLSModel end
-
-mutable struct LLSMatrixModel <: AbstractLLSModel
-  meta :: NLPModelMeta
-  nls_meta :: NLSMeta
-  counters :: NLSCounters
-
-  A
-  b :: Vector
-  C
-end
-
-function LLSMatrixModel(A :: AbstractMatrix, b :: AbstractVector;
+#=function LLSMatrixModel(A :: AbstractMatrix, b :: AbstractVector;
                         x0 :: AbstractVector = zeros(eltype(A), size(A,2)),
                         lvar :: AbstractVector = fill(eltype(A)(-Inf), size(A, 2)),
                         uvar :: AbstractVector = fill(eltype(A)(Inf), size(A, 2)),

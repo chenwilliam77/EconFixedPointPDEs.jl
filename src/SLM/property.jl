@@ -102,6 +102,13 @@ function default_slm_kwargs!(kwargs::Dict, T::Type)
         kwargs[:use_sparse] = false
     end
 
+    # Use LLSModel rather than ADNLSModel (from NLPModels) to
+    # define the constrained linear least squares problem.
+    # This usually creates speed gains
+    if !haskey(kwargs, :use_lls)
+        kwargs[:use_lls] = true
+    end
+
     return kwargs
 end
 
