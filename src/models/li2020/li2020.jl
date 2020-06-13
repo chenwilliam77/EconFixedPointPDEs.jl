@@ -16,17 +16,14 @@ Schorfheide.
 * `keys::OrderedDict{Symbol,Int}`: Maps human-readable names for all model
   parameters to their indices in `parameters`.
 
-#### Inputs to Measurement and Equilibrium Differential Equations
+#### Inputs to Measurement and Equilibrium Functional Equations
 
 The following fields are dictionaries that map human-readable names to indices.
 
 * `stategrid::OrderedDict{Symbol,Int}`: Maps each state variable to its dimension on a Cartesian grid
 
 * `endogenous_variables::OrderedDict{Symbol,Int}`: Maps endogenous variables
-    calculated during the solution of differential equations to an index
-
-* `endogenous_variables_augmented::OrderedDict{Symbol,Int}`: Maps endogenous variables
-    that can be calculated after solving the equilibrium differential equations
+    calculated during the solution of functional equations to an index
 
 * `exogenous_shocks::OrderedDict{Symbol,Int}`: Maps each shock to a column in
   the measurement equation
@@ -76,7 +73,7 @@ mutable struct Li2020{T} <: AbstractNLCTModel{T}
                                                            # parameters and steady-states
     stategrid::OrderedDict{Symbol,Int}                     # dimension number of state variable
 
-    differential_variables::OrderedDict{Symbol,Int}
+    functional_variables::OrderedDict{Symbol,Int}
     derivatives::OrderedDict{Symbol,Int}
     endogenous_variables::OrderedDict{Symbol,Int}
     exogenous_shocks::OrderedDict{Symbol,Int}
@@ -112,8 +109,8 @@ function init_model_indices!(m::Li2020)
     # Exogenous shocks
     exogenous_shocks = collect([:K_sh, :N_sh]) # capital shock K, liquidity shock N
 
-    # Variables for differential equations
-    differential_variables = collect([:p])
+    # Variables for functional equations
+    functional_variables = collect([:p])
 
     # Derivatives of variables
     derivatives = collect([:∂p∂w])
@@ -127,13 +124,13 @@ function init_model_indices!(m::Li2020)
     # Pseudo-observables
     pseudo_observables = keys(m.pseudo_observable_mappings)
 
-    for (i,k) in enumerate(stategrid);              m.stategrid[k]              = i end
-    for (i,k) in enumerate(exogenous_shocks);       m.exogenous_shocks[k]       = i end
-    for (i,k) in enumerate(endogenous_variables);   m.endogenous_variables[k]   = i end
-    for (i,k) in enumerate(differential_variables); m.differential_variables[k] = i end
-    for (i,k) in enumerate(derivatives);            m.derivatives[k]            = i end
-    for (i,k) in enumerate(observables);            m.observables[k]            = i end
-    for (i,k) in enumerate(pseudo_observables);     m.pseudo_observables[k]     = i end
+    for (i,k) in enumerate(stategrid);              m.stategrid[k]            = i end
+    for (i,k) in enumerate(exogenous_shocks);       m.exogenous_shocks[k]     = i end
+    for (i,k) in enumerate(endogenous_variables);   m.endogenous_variables[k] = i end
+    for (i,k) in enumerate(functional_variables);   m.functional_variables[k] = i end
+    for (i,k) in enumerate(derivatives);            m.derivatives[k]          = i end
+    for (i,k) in enumerate(observables);            m.observables[k]          = i end
+    for (i,k) in enumerate(pseudo_observables);     m.pseudo_observables[k]   = i end
 end
 
 function Li2020(subspec::String = "ss0";
@@ -268,6 +265,8 @@ function model_settings!(m::Li2020)
     m <= Setting(:κp_grid, Vector{Float64}(undef, 0), "Vector of guesses for κp used during iteration for new κp and xK within each functional loop")
     m <= Setting(:p_fitted_interpolant, Gridded(Linear()), "Interpolant method for fitted p.")
     m <= Setting(:xK_interpolant, Gridded(Linear()), "Interpolant method for xK after solving xK for each guess of κp.")
+    m <= Setting(:xg_interpolant, Gridded(Linear()), "Interpolant method for xg after solving xK and κp.")
+    m <= Setting(:κp_interpolant, Gridded(Linear()), "Interpolant method for κp after solving xK and κp.")
 
     # Other settings for initialization
     m <= Setting(:nojump_parameters, [:ρ, :AH, :AL, :σK, :χ, :δ], "Keys of parameters used when solving the no-jump equilibrium.")

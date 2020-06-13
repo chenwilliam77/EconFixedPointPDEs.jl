@@ -1,4 +1,4 @@
-using Test, DifferentialEquations, HDF5, ModelConstructors
+using Test, OrdinaryDiffEq, HDF5, ModelConstructors
 include("../../../src/includeall.jl")
 
 m = Li2020()

@@ -1,18 +1,32 @@
 """
 ```
-augment_variables_nojump!(m::Li2020, stategrid::StateGrid, ode_f::Function, diffvar::OrderedDict{Symbol, Vector{S}},
+augment_variables(m::Li2020, stategrid::StateGrid, ode_f::Function, funcvar::OrderedDict{Symbol, Vector{S}},
     endo::OrderedDict{Symbol, Vector{S}}, odesol::ODESolution) where {S <: Real}
 ```
 
 calculates derivatives and additional endogenous variables that can be computed
-after solving the equilibrium system of differential equations.
+after solving the equilibrium system of functional equations.
 """
-function augment_variables_nojump!(m::Li2020, stategrid::StateGrid, ode_f::Function, diffvar::OrderedDict{Symbol, AbstractVector{S}},
-                                   derivs::OrderedDict{Symbol, AbstractVector{S}},
-                                   endo::OrderedDict{Symbol, AbstractVector{S}}, odesol::ODESolution) where {S <: Real}
+function augment_variables(m::Li2020, stategrid::StateGrid, ode_f::Function, funcvar::OrderedDict{Symbol, AbstractVector{S}},
+                           derivs::OrderedDict{Symbol, AbstractVector{S}},
+                           endo::OrderedDict{Symbol, AbstractVector{S}}, odesol::ODESolution) where {S <: Real}
+end
+
+"""
+```
+augment_variables_nojump!(m::Li2020, stategrid::StateGrid, ode_f::Function, funcvar::OrderedDict{Symbol, Vector{S}},
+    endo::OrderedDict{Symbol, Vector{S}}, odesol::ODESolution) where {S <: Real}
+```
+
+calculates derivatives and additional endogenous variables that can be computed
+after solving the equilibrium system of functional equations.
+"""
+function augment_variables_nojump!(m::Li2020, stategrid::StateGrid, ode_f::Function, funcvar::OrderedDict{Symbol, Vector{S}},
+                                   derivs::OrderedDict{Symbol, Vector{S}},
+                                   endo::OrderedDict{Symbol, Vector{S}}, odesol::ODESolution) where {S <: Real}
 
     # Unpack equilibrium endogenous variables and stategrid
-    p    = diffvar[:p]
+    p    = funcvar[:p]
     derivs[:∂p∂w] = similar(p)
     ∂p∂w = derivs[:∂p∂w]
     ψ    = endo[:ψ]
@@ -31,7 +45,6 @@ function augment_variables_nojump!(m::Li2020, stategrid::StateGrid, ode_f::Funct
     p[(i + 1):end] .= boundary_conditions(m)[:p][2]
     θ = parameters_to_named_tuple(map(x -> get_parameters(m)[get_keys(m)[x]], get_setting(m, :nojump_parameters)))
     ∂p∂w[1:i] .= map(j -> ode_f(p[j], θ, stategrid[:w][j]), 1:i)
-    @show ∂p∂w[1:i]
     ∂p∂w[(i + 1):end] .= 0.
 
     # Solve for values not calculated during the calculation of equilibrium

@@ -18,10 +18,10 @@ function initialize!(m::Li2020)
                               Int(N - round(N / 2) - 1)))
     stategrid = StateGrid(stategrid_init)
 
-    # Construct dictionary of differential variables
-    diffvar = OrderedDict{Symbol, Vector{model_type}}()
-    for k in keys(get_differential_variables(m))
-        diffvar[k] = Vector{model_type}(undef, N)
+    # Construct dictionary of functional variables
+    funcvar = OrderedDict{Symbol, Vector{model_type}}()
+    for k in keys(get_functional_variables(m))
+        funcvar[k] = Vector{model_type}(undef, N)
     end
 
     # Construct dictionary of derivatives
@@ -48,7 +48,7 @@ function initialize!(m::Li2020)
     set_boundary_conditions!(m, :∂p∂w, [∂p∂w0, ∂p∂wN])
 
     # Settings for functional iteration
-    m <= Setting(:κp_guess, vcat(0., exp(range(log(1e-3), stop = log((p₁ - p₀) / p₁), length = 19))))
+    m <= Setting(:κp_guess, vcat(0., exp.(range(log(1e-3), stop = log((p₁ - p₀) / p₁), length = 19))))
 
-    return stategrid, diffvar, derivs, endo
+    return stategrid, funcvar, derivs, endo
 end

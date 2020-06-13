@@ -10,7 +10,10 @@ function eqcond(m::Li2020)
     # θ = parameters_to_named_tuple(get_parameters(m))
 
     # Unpack items from m that are needed to construct the functional loop
-    p_fitted_interpolant = get_setting(m, :p_fitted_interpolant)
+    p_fitted_interpolant  = get_setting(m, :p_fitted_interpolant)
+    xK_fitted_interpolant = get_setting(m, :xK_fitted_interpolant)
+    xg_fitted_interpolant = get_setting(m, :xg_fitted_interpolant)
+    κp_fitted_interpolant = get_setting(m, :κp_fitted_interpolant)
     Φ = get_setting(m, :Φ)
     Q = get_setting(m, :gov_bond_gdp_level) * get_setting(m, :avg_gdp)
     p₀, p₁ = boundary_conditions(m)[:p]
@@ -18,15 +21,19 @@ function eqcond(m::Li2020)
     κp_grid = get_setting(m, :κp_grid)
     damping_function = get_setting(m, :damping_function)
 
+    # Construct the initial guess for p by interpolating the solution from
+    # the no jump equilibrium via SLM
+
     # The functional loop should return the proposals for the new values of the variables
     # over which we are iterating. For Li (2020), these are p, xg, and Q̂.
-    f = function _functional_loop_li2020(stategrid::StateGrid, diffvar::OrderedDict{Symbol, AbstractVector},
+    f = function _functional_loop_li2020(stategrid::StateGrid, funcvar::OrderedDict{Symbol, AbstractVector},
                                          derivs::OrderedDict{Symbol, AbstractVector},
-                                         endo::OrderedDict{Symbol, AbstractVector{S}}, θ::NamedTuple;
+                                         endo::OrderedDict{Symbol, AbstractVector{S}}, θ::NamedTuple,
+                                         init_coef::AbstractVector{S};
                                          verbose::Symbol = :low) where {S <: Real}
 
         # Unpack variables of interest
-        p    = diffvar[:p]
+        p    = funcvar[:p]
         ∂p∂w = derivs[:∂p∂w]
         κp   = endo[:κp]
         Q̂    = endo[:Q̂]
@@ -60,7 +67,7 @@ function eqcond(m::Li2020)
             κp_new[i], xKᵢ, xg_new[i], succeed_κp, succeed_xK, succeed_xg =
                 inside_iteration(wᵢ, p_fitted, pᵢ, ∂p∂wᵢ, xKᵢ,
                                  xgᵢ, Q, Q̂ᵢ, max_jump, θ;
-                                 κp_grid = κp_grid,
+                                 κp_grid = κp_grid, xK_interpolant = xK_interpolant,
                                  damping_function = damping_function,
                                  verbose = verbose)
 
@@ -80,13 +87,26 @@ function eqcond(m::Li2020)
         end
 
         # Solve for p over the whole grid by interpolating over points with success
-        # TO BE DONE: use least-squares spline w/monotonicity for q
-        p_new_spl  = Spline1D(w[solved_index], p_new[solved_index], bc = "extrapolate")
-        xg_new_spl = Spline1D(w[solved_xg], xg_new[solved_xg], bc = "extrapolate")
-        κp_new_spl = Spline1D(w[solved_κp], κp_new[solved_κp], bc = "extrapolate")
-        p_new  .= map(x -> p_new_spl(x), w)
-        xg_new .= map(x -> xg_new_spl(x), w)
-        κp_new .= map(x -> κp_new_spl(x), w)
+        p_new_slm = SLM(w[solved_index], p_new[solved_index]; increasing = true,
+                        concave_down = true, left_value = p₀, right_value = p₁,
+                        knots = Int(round(count(solved_index) / 2)), init = init_coef)
+        p_new = slmeval(w, p_new_slm)
+
+        # An alternative to slm: p_new_spl  = Spline1D(w[solved_index], p_new[solved_index], bc = "extrapolate")
+        # but it won't preserve features like monotonicity
+
+        # Interpolate other quantities using a 1D cubic Spline
+        xg_new_spl = interpolate((w[solved_xg], ), xg_new[solved_xg], xg_interpolant)
+        κp_new_spl = interpolate((w[solved_xg], ), xg_new[solved_xg], κp_interpolant)
+
+        # An alternative: Dierckx
+        # xg_new_spl = Spline1D(w[solved_xg], xg_new[solved_xg], bc = "extrapolate")
+        # κp_new_spl = Spline1D(w[solved_κp], κp_new[solved_κp], bc = "extrapolate")
+
+        # Evaluate interpolants
+        p_new  .= p_new_spl(w)
+        xg_new .= xg_new_spl(w)
+        κp_new .= κp_new_spl(w)
 
         ## Step 3: Update Q̂ using simulation methods
 
@@ -98,13 +118,13 @@ end
 
 """
 ```
-inside_iteration(m, stategrid, diffvar, xK, xg, i; verbose = :low)
+inside_iteration_li2020(m, stategrid, funcvar, xK, xg, i; verbose = :low)
 ```
 
 calculates a new xK, xg, and κp within a functional iteration loop
 when solving equilibrium in Li (2020) with jumps.
 """
-function inside_iteration(w::S, p_interp, p::S, ∂p∂w::S, xK0::S, xg0::S, Q::S, Q̂::S, max_jump::S,
+function inside_iteration_li2020(w::S, p_interp, p::S, ∂p∂w::S, xK0::S, xg0::S, Q::S, Q̂::S, max_jump::S,
                           θ::NamedTuple; κp_grid::AbstractVector{S} = Vector{S}(undef, 0),
                           xK_max::S = 1e10, κp_residual_error::S = 1e30, xK_residual_error::S = 1e20,
                           xg_residual_error::S = 1e20,
@@ -283,6 +303,16 @@ function inside_iteration(w::S, p_interp, p::S, ∂p∂w::S, xK0::S, xg0::S, Q::
     end
 
     return κp, xK, xg, succeed_κp, succeed_xK, succeed_xg
+end
+
+"""
+```
+prepare_Q̂
+```
+
+calculates the quantities needed for Q̂.
+"""
+function prepare_Q̂()
 end
 
 """
