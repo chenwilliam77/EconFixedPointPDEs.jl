@@ -26,10 +26,35 @@ SLM(x::AbstractVector{T}, y::AbstractVector{T}; calculate_stats::Bool = false,
 
 ### Keywords
 - `degree::Int = 3`: Degree of the spline. A degree 3 spline is a piecewise cubic Hermite spline.
-- `scaling::Int = 3`: Degree of the spline. A degree 3 spline is a piecewise cubic Hermite spline.
-- `calculate_stats::Bool = false`: If true, calculate statistics about the spline regression (e.g. R²).
+- `scaling::Bool = true`: If true, scale the `y` values and coefficients to avoid numerical issues
+- `knots::Int = 6`: Number of knots for the spline
+- `C2::Bool = true`: If true, enforce that the spline satisfies C2 continuity
+- `λ::T = 1e-4`: Regularization parameter for how smooth the spline is (smaller λ ⇒ smoother spline)
+- `left_value::T = NaN`: Controls the spline's value at the left end point. If it is a `NaN`, then the
+    spline's value at the left end point is not controlled, i.e. it can be any number.
+- `right_value::T = NaN`: Controls the spline's value at the right end point. If it is a `NaN`, then the
+    spline's value at the right end point is not controlled, i.e. it can be any number.
+- `min_value::T = NaN`: Sets the spline's global minimum value. If it is a `NaN`, then
+    no minimum value is imposed.
+- `max_value::T = NaN`: Set the spline's global maximum value. If it is a `NaN`, then the
+    no maximum value is imposed.
+- `min_max_sample_points::AbstractVector{T} =
+    [.017037, .066987, .14645, .25, .37059, .5, .62941, .75, .85355, .93301, .98296]`:
+    Sample points used to enforce global min/max values. The default points are Chebyshev nodes.
+- `increasing::Bool = false`: If true, the spline will monotonically increase over the interpolation domain.
+- `decreasing::Bool = false`: If true, the spline will monotonically decrease over the interpolation domain.
+- `increasing_intervals::AbstractMatrix{T} = []`: If nonempty, each row of the n × 2 matrix `increasing_intervals` specifies
+    the left and right end points of an interval over which the spline monotonically increases.
+- `decreasing_intervals::AbstractMatrix{T} = []`: If nonempty, each row of the n × 2 matrix `decreasing_intervals` specifies
+    the left and right end points of an interval over which the spline monotonically decreases.
+- `concave_up_intervals::AbstractMatrix{T} = []`: If nonempty, each row of the n × 2 matrix `concave_up_intervals` specifies
+    the left and right end points of an interval over which the spline is concave up (i.e. convex in the normal sense).
+- `concave_down_intervals::AbstractMatrix{T} = []`: If nonempty, each row of the n × 2 matrix `concave_down_intervals` specifies
+    the left and right end points of an interval over which the spline is concave down (i.e. concave in the normal sense).
+- `init::AbstractVector{T} = []`: If nonempty, `init` is just as an initial guess for the coefficients of the spline.
+- `calculate_stats::Bool = false`: If true, calculate statistics about the spline regression (e.g. R²). Currently,
+    no statistics are calculated, so setting `calculate_stats` to true does nothing.
 - `verbose::Symbol`: Verbosity of information printed during construction of an SLM object.
-COMPLETE THE KEYWORDS
 """
 mutable struct SLM{T} <: AbstractSLM{T}
     stats::NamedTuple
@@ -86,6 +111,19 @@ function SLM(x::AbstractVector{T}, y::AbstractVector{T}; calculate_stats::Bool =
         calculate_stats = true # Statistics will be calculated if verbose is high
     end
     kwargs = Dict{Symbol, Any}(kwargs)
+
+    if haskey(kwargs, :increasing_intervals)
+        @assert size(kwargs[:increasing_intervals], 2) == 2 "The matrix for the keyword increasing_intervals must be n × 2."
+    end
+    if haskey(kwargs, :decreasing_intervals)
+        @assert size(kwargs[:decreasing_intervals], 2) == 2 "The matrix for the keyword decreasing_intervals must be n × 2."
+    end
+    if haskey(kwargs, :concave_up_intervals)
+        @assert size(kwargs[:concave_up_intervals], 2) == 2 "The matrix for the keyword concave_up_intervals must be n × 2."
+    end
+    if haskey(kwargs, :concave_down_intervals)
+        @assert size(kwargs[:concave_down_intervals], 2) == 2 "The matrix for the keyword concave_down_intervals must be n × 2."
+    end
 
     # Remove nans
     to_remove = isnan.(x) .| isnan.(y)

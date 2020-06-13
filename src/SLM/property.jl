@@ -14,11 +14,6 @@ function default_slm_kwargs!(kwargs::Dict, T::Type)
         kwargs[:degree] = 3
     end
 
-    # # issorted
-    # if !haskey(kwargs, :issorted)
-    #     kwargs[:issorted] = false
-    # end
-
     # scaling
     if !haskey(kwargs, :scaling)
         kwargs[:scaling] = true
@@ -37,6 +32,29 @@ function default_slm_kwargs!(kwargs::Dict, T::Type)
     # Regularization parameter
     if !haskey(kwargs, :λ)
         kwargs[:λ] = convert(T, 1e-4)
+    end
+
+    # End point values
+    if !haskey(kwargs, :left_value)
+        kwargs[:left_value] = NaN
+    end
+
+    if !haskey(kwargs, :right_value)
+        kwargs[:right_value] = NaN
+    end
+
+    # Global min and max
+    if !haskey(kwargs, :min_value)
+        kwargs[:min_value] = NaN
+    end
+
+    if !haskey(kwargs, :max_value)
+        kwargs[:max_value] = NaN
+    end
+
+    if !haskey(kwargs, :min_max_sample_points)
+        kwargs[:min_max_sample_points] = convert(Vector{T}, [.017037, .066987, .14645, .25, .37059,
+                                                             .5, .62941, .75, .85355, .93301, .98296])
     end
 
     # Monotonicity
@@ -71,29 +89,6 @@ function default_slm_kwargs!(kwargs::Dict, T::Type)
 
     if !haskey(kwargs, :concave_down_intervals)
         kwargs[:concave_down_intervals] = Matrix{T}(undef, 0, 0)
-    end
-
-    # End point values
-    if !haskey(kwargs, :left_value)
-        kwargs[:left_value] = NaN
-    end
-
-    if !haskey(kwargs, :right_value)
-        kwargs[:right_value] = NaN
-    end
-
-    # Global min and max
-    if !haskey(kwargs, :min_value)
-        kwargs[:min_value] = NaN
-    end
-
-    if !haskey(kwargs, :max_value)
-        kwargs[:max_value] = NaN
-    end
-
-    if !haskey(kwargs, :min_max_sample_points)
-        kwargs[:min_max_sample_points] = convert(Vector{T}, [.017037, .066987, .14645, .25, .37059,
-                                                             .5, .62941, .75, .85355, .93301, .98296])
     end
 
     if !haskey(kwargs, :init)
