@@ -91,8 +91,15 @@ function default_slm_kwargs!(kwargs::Dict, T::Type)
         kwargs[:concave_down_intervals] = Matrix{T}(undef, 0, 0)
     end
 
+    # Initial guess for spline's coefficients
     if !haskey(kwargs, :init)
         kwargs[:init] = Vector{T}(undef, 0)
+    end
+
+    # Use sparse matrices when constructing the
+    # objective and constraints
+    if !haskey(kwargs, :use_sparse)
+        kwargs[:use_sparse] = false
     end
 
     return kwargs
@@ -184,14 +191,15 @@ end
 """
 ```
 construct_design_matrix(x::AbstractVector{T}, knots::AbstractVector{T},
-    dknots::AbstractVector{T}, x_bins::AbstractVector{Int}, nₓ::Int, nk::Int, nc::Int) where {T <: Real}
+    dknots::AbstractVector{T}, x_bins::AbstractVector{Int}, nₓ::Int, nk::Int, nc::Int;
+    use_sparse::Bool = false) where {T <: Real}
 ```
 
 constructs the design matrix used to create an SLM.
 """
 function construct_design_matrix(x::AbstractVector{T}, knots::AbstractVector{T},
                                  dknots::AbstractVector{T}, x_bins::AbstractVector{Int},
-                                 nₓ::Int, nk::Int, nc::Int) where {T <: Real}
+                                 nₓ::Int, nk::Int, nc::Int; use_sparse = false) where {T <: Real}
 
     # Create values used in the design matrix
     t  = (x - knots[x_bins]) ./ dknots[x_bins]
@@ -208,27 +216,45 @@ function construct_design_matrix(x::AbstractVector{T}, knots::AbstractVector{T},
     # Coefficients are stored in two blocks,
     # first nk function values, then nk derivatives
     # Must use vector of CartesianIndex for the subscripts (unlike in Matlab)
-    Mdes = accumarray([CartesianIndex(i, j) for (i, j) in
-                       zip(repeat(collect(1:nₓ), 4),
-                           [x_bins; x_bins .+ 1; nk .+ x_bins; (nk + 1) .+ x_bins])],
-                      vals, (nₓ, nc))
+    Mdes = if use_sparse
+        sparse_accumarray([CartesianIndex(i, j) for (i, j) in
+                    zip(repeat(collect(1:nₓ), 4),
+                        [x_bins; x_bins .+ 1; nk .+ x_bins; (nk + 1) .+ x_bins])],
+                   vals, (nₓ, nc))
+    else
+        accumarray([CartesianIndex(i, j) for (i, j) in
+                    zip(repeat(collect(1:nₓ), 4),
+                        [x_bins; x_bins .+ 1; nk .+ x_bins; (nk + 1) .+ x_bins])],
+                   vals, (nₓ, nc))
+    end
 
     return Mdes
 end
 
 """
 ```
-construct_regularizer(dknots::AbstractVector{T}, nk::Int) where {T <: Real}
+construct_regularizer(dknots::AbstractVector{T}, nk::Int;
+    use_sparse::Bool = false) where {T <: Real}
 ```
 
 constructs the regularizer equations used to fit the least-squares spline
 when constructing an SLM.
 """
-function construct_regularizer(dknots::AbstractVector{T}, nk::Int) where {T <: Real}
+function construct_regularizer(dknots::AbstractVector{T}, nk::Int;
+                               use_sparse::Bool = false) where {T <: Real}
+
     # We are integrating the piecewise linear f''(x)
     # as a quadratic form in terms of the (unknown) second
     # derivatives at the knots
-    Mreg = zeros(T, nk, nk)
+    if use_sparse
+        sf = spzeros(T, nk, nk)
+        sd = spzeros(T, nk, nk)
+    else
+        sf = zeros(T, nk, nk)
+        sd = zeros(T, nk, nk)
+    end
+    Mreg = zeros(T, nk, nk) # need to take a Cholesky of this matrix
+
     Mreg[1, 1] = dknots[1] / 3.
     Mreg[1, 2] = dknots[1] / 6.
     Mreg[nk, nk - 1] = dknots[end] / 6.
@@ -238,13 +264,11 @@ function construct_regularizer(dknots::AbstractVector{T}, nk::Int) where {T <: R
         Mreg[i, i] = (dknots[i - 1] + dknots[i]) / 3.
         Mreg[i, i + 1] = dknots[i] / 6.
     end
-    Mreg = cholesky(Mreg).U # Matrix square root, cholesky is easy way to do this
+    Mreg = use_sparse ? sparse(cholesky(Mreg).U) : cholesky(Mreg).U # Matrix square root, cholesky is easy way to do this
 
     # Write second derivativeas as a function of
     # the function values and first derivatives
-    sf = zeros(T, nk, nk)
-    sd = zeros(T, nk, nk)
-    for i in 1:(nk - 1)
+     for i in 1:(nk - 1)
         sf[i, i] = -(6. / dknots[i]^2)
         sf[i, i + 1] = 6. / dknots[i]^2
         sd[i, i] = -4. / dknots[i]
@@ -265,13 +289,15 @@ end
 """
 ```
 C2_matrix(nk::Int, nc::Int, dknots::AbstractVector{T},
-    Meq::AbstractMatrix{T}, rhseq::AbstractVector{T}) where {T <: Real}
+    Meq::AbstractMatrix{T}, rhseq::AbstractVector{T},
+    use_sparse::Bool = false) where {T <: Real}
 ```
 
 constructs the matrix of equations that enforce twice-continuous differentiability.
 """
-function C2_matrix(nk::Int, nc::Int, dknots::AbstractVector{T}, Meq::AbstractMatrix{T}, rhseq::AbstractVector{T}) where {T <: Real}
-    MC2 = zeros(T, nk - 2, nc)
+function C2_matrix(nk::Int, nc::Int, dknots::AbstractVector{T}, Meq::AbstractMatrix{T}, rhseq::AbstractVector{T};
+                   use_sparse::Bool = false) where {T <: Real}
+    MC2 = use_sparse ? spzeros(T, nk - 2, nc) : zeros(T, nk - 2, nc)
     for i in 1:(nk - 2)
         MC2[i, i] = 6. / dknots[i]^2
         MC2[i, i + 1] = -6. / dknots[i]^2 + 6. / dknots[i + 1]^2
@@ -359,7 +385,8 @@ end
 ```
 function construct_monotoncitiy_matrix(monotone_settings::Vector{NamedTuple{(:knotlist, :increasing), Tuple{Tuple{Int, Int}, Bool}}},
                                       nc::Int, nk::Int, dknots::AbstractVector{T}, total_intervals::Int,
-                                      Mineq::AbstractMatrix{T}, rhsineq::AbstractVector{T}) where {T <: Real}
+                                      Mineq::AbstractMatrix{T}, rhsineq::AbstractVector{T};
+    use_sparse::Bool = false) where {T <: Real}
 ```
 The function must be monotone between
 knots j and j + 1. The direction over
@@ -408,9 +435,10 @@ put them into a linear form.
 """
 function construct_monotonicity_matrix(monotone_settings::Vector{NamedTuple{(:knotlist, :increasing), Tuple{Tuple{Int, Int}, Bool}}},
                                       nc::Int, nk::Int, dknots::AbstractVector{T}, total_intervals::Int,
-                                      Mineq::AbstractMatrix{T}, rhsineq::AbstractVector{T}) where {T <: Real}
+                                      Mineq::AbstractMatrix{T}, rhsineq::AbstractVector{T};
+                                       use_sparse::Bool = false) where {T <: Real}
     L = length(monotone_settings)
-    M = zeros(T, 7 * total_intervals, nc)
+    M = use_sparse ? spzeros(T, 7 * total_intervals, nc) : zeros(T, 7 * total_intervals, nc)
     n = 0
 
     for i in 1:L
@@ -475,22 +503,26 @@ end
 
 """
 ```
-set_left_value(left_value::T, nc:Int, M::AbstractMatrix{T}, rhseq::AbstractVector{T}) where {T <: Real}
+set_left_value(left_value::T, nc:Int, M::AbstractMatrix{T}, rhseq::AbstractVector{T};
+    use_sparse::Bool = false) where {T <: Real}
 ```
 """
-function set_left_value(left_value::T, nc::Int, M::AbstractMatrix{T}, rhseq::AbstractVector{T}) where {T <: Real}
-    M_add = zeros(T, 1, nc)
+function set_left_value(left_value::T, nc::Int, M::AbstractMatrix{T}, rhseq::AbstractVector{T};
+                        use_sparse::Bool = false) where {T <: Real}
+    M_add = use_sparse ? spzeros(T, 1, nc) : zeros(T, 1, nc)
     M_add[1] = 1.
     return vcat(M, M_add), vcat(rhseq, left_value)
 end
 
 """
 ```
-set_right_value(right_value::T, nc::Int, nk::Int, M::AbstractMatrix{T}, rhseq::AbstractVector{T}) where {T <: Real}
+set_right_value(right_value::T, nc::Int, nk::Int, M::AbstractMatrix{T}, rhseq::AbstractVector{T};
+    use_sparse::Bool = false) where {T <: Real}
 ```
 """
-function set_right_value(right_value::T, nc::Int, nk::Int, M::AbstractMatrix{T}, rhseq::AbstractVector{T}) where {T <: Real}
-    M_add = zeros(T, 1, nc)
+function set_right_value(right_value::T, nc::Int, nk::Int, M::AbstractMatrix{T}, rhseq::AbstractVector{T};
+                         use_sparse::Bool = false) where {T <: Real}
+    M_add = use_sparse ? spzeros(T, 1, nc) : zeros(T, 1, nc)
     M_add[nk] = 1.
     return vcat(M, M_add), vcat(rhseq, right_value)
 end
@@ -499,19 +531,21 @@ end
 ```
 set_min_value(min_value::T, nk::Int, nc::Int, dknots::AbstractVector{T}, Mineq::AbstractMatrix{T}, rhsineq::AbstractVector{T};
     sample_points::AbstractVector{T} = [.017037, .066987, .14645, .25, .37059,
-                                        .5, .62941, .75, .85355, .93301, .98296]) where {T <: Real}
+                                        .5, .62941, .75, .85355, .93301, .98296],
+    use_sparse::Bool = false) where {T <: Real}
 ```
 
 creates the equations enforcing a maximum value for the spline.
 """
 function set_min_value(min_value::T, nk::Int, nc::Int, dknots::AbstractVector{T}, Mineq::AbstractMatrix{T}, rhsineq::AbstractVector{T};
                        sample_points::AbstractVector{T} = [.017037, .066987, .14645, .25, .37059,
-                                                           .5, .62941, .75, .85355, .93301, .98296]) where {T <: Real}
+                                                           .5, .62941, .75, .85355, .93301, .98296],
+                       use_sparse::Bool = false) where {T <: Real}
 
     # The default sample points are Chebyshev nodes
     nsamp = length(sample_points)
     ntot = nk + (nk - 1) * nsamp
-    Mmin = zeros(T, ntot, nc)
+    Mmin = use_sparse ? spzeros(T, ntot, nc) : zeros(T, ntot, nc)
 
     # Constrain values at knots
     for i in 1:nk # This is the same as Min[1:nk, 1:nk] = -Matrix{T}(I, nk, nk)
@@ -538,20 +572,22 @@ end
 """
 ```
 set_max_value(max_value::T, nk::Int, nc::Int, dknots::AbstractVector{T}, Mineq::AbstractMatrix{T}, rhsineq::AbstractVector{T};
-                     sample_points::AbstractVector{T} = [.017037, .066987, .14645, .25, .37059,
-                                                         .5, .62941, .75, .85355, .93301, .98296]) where {T <: Real}
+    sample_points::AbstractVector{T} = [.017037, .066987, .14645, .25, .37059,
+                                        .5, .62941, .75, .85355, .93301, .98296],
+    use_sparse:Bool = false) where {T <: Real}
 ```
 
 creates the equations enforcing a maximum value for the spline.
 """
 function set_max_value(max_value::T, nk::Int, nc::Int, dknots::AbstractVector{T}, Mineq::AbstractMatrix{T}, rhsineq::AbstractVector{T};
                        sample_points::AbstractVector{T} = [.017037, .066987, .14645, .25, .37059,
-                                                           .5, .62941, .75, .85355, .93301, .98296]) where {T <: Real}
+                                                           .5, .62941, .75, .85355, .93301, .98296],
+                       use_sparse::Bool = false) where {T <: Real}
 
     # The default sample points are Chebyshev nodes
     nsamp = length(sample_points)
     ntot = nk + (nk - 1) * nsamp
-    Mmax = zeros(T, ntot, nc)
+    Mmax = use_sparse ? spzeros(T, ntot, nc) : zeros(T, ntot, nc)
 
     # Constrain values at knots
     for i in 1:nk # This is the same as Mmax[1:nk, 1:nk] = Matrix{T}(I, nk, nk)
@@ -632,14 +668,16 @@ end
 ```
 function construct_curvature_matrix(curvature_settings::Vector{NamedTuple{(:concave_up, :range), Tuple{Bool, Vector{T}}}},
                                     nc::Int, nk::Int, knots::AbstractVector{T}, dknots::AbstractVector{T},
-                                    Mineq::AbstractMatrix{T}, rhsineq::AbstractVector{T}) where {T <: Real}
+                                    Mineq::AbstractMatrix{T}, rhsineq::AbstractVector{T};
+                                    use_sparse::Bool = false) where {T <: Real}
 ```
 
 creates the inequalities enforcing curvature for the spline
 """
 function construct_curvature_matrix(curvature_settings::Vector{NamedTuple{(:concave_up, :range), Tuple{Bool, Vector{T}}}},
                                     nc::Int, nk::Int, knots::AbstractVector{T}, dknots::AbstractVector{T},
-                                    Mineq::AbstractMatrix{T}, rhsineq::AbstractVector{T}) where {T <: Real}
+                                    Mineq::AbstractMatrix{T}, rhsineq::AbstractVector{T};
+                                    use_sparse::Bool = false) where {T <: Real}
 
     L = length(curvature_settings)
     if L > 1
@@ -649,9 +687,9 @@ function construct_curvature_matrix(curvature_settings::Vector{NamedTuple{(:conc
             end_range = map(a -> max(min(a, knots[end]), knots[1]), curvature_settings[i][:range])
             dim1 += length(bin_sort(end_range, knots))
         end
-        M = zeros(T, dim1, nc)
+        M = use_sparse ? spzeros(T, dim1, nc) : zeros(T, dim1, nc)
     else
-        M = zeros(T, nk, nc)
+        M = use_sparse ? spzeros(T, nk, nc) : zeros(T, nk, nc)
     end
     n = 0
 

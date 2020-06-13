@@ -9,11 +9,20 @@ in_sin = load(joinpath(rp, "solve_slm_system_sine.jld2"))
 in_sinnoineq = load(joinpath(rp, "solve_slm_system_sinenoineq.jld2"))
 noconstraints = load(joinpath(rp, "solve_slm_system_noconstraints.jld2"))
 
-#=@btime begin
-out = solve_slm_system(in_inc["Mdes"], vec(in_inc["rhs"]), in_inc["Mreg"],
-                       vec(in_inc["rhsreg"]), in_inc["finalRP"], in_inc["Meq"], vec(in_inc["rhseq"]),
-                       in_inc["Mineq"], vec(in_inc["rhsineq"]))
-end=#
+#=println("No sparse matrices")
+@btime begin
+    solve_slm_system(in_inc["Mdes"], vec(in_inc["rhs"]), in_inc["Mreg"],
+                     vec(in_inc["rhsreg"]), in_inc["finalRP"], in_inc["Meq"], vec(in_inc["rhseq"]),
+                     in_inc["Mineq"], vec(in_inc["rhsineq"]))
+end
+
+println("Sparse matrices")
+@btime begin
+    solve_slm_system(in_inc["Mdes"], vec(in_inc["rhs"]), in_inc["Mreg"],
+                     vec(in_inc["rhsreg"]), in_inc["finalRP"], in_inc["Meq"], vec(in_inc["rhseq"]),
+                     in_inc["Mineq"], vec(in_inc["rhsineq"]); use_sparse = true)
+end
+=#
 
 # Run tests
 @testset "Coefficients of least-square spline" begin

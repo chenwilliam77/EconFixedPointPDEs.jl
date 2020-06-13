@@ -162,7 +162,8 @@ function SLM(x::AbstractVector{T}, y::AbstractVector{T}; calculate_stats::Bool =
                   concave_down_intervals = kwargs[:concave_down_intervals],
                   left_value = kwargs[:left_value], right_value = kwargs[:right_value],
                   min_value = kwargs[:min_value], max_value = kwargs[:max_value],
-                  min_max_sample_points = kwargs[:min_max_sample_points])
+                  min_max_sample_points = kwargs[:min_max_sample_points],
+                  use_sparse = kwargs[:use_sparse])
     else
         error("degree $(kwargs[:degree]) has not been implemented")
     end
@@ -205,7 +206,8 @@ function SLM_cubic(x::AbstractVector{T}, y::AbstractVector{T}, y_scale::T, y_shi
                    left_value::T = NaN, right_value::T = NaN,
                    min_value::T = NaN, max_value::T = NaN,
                    min_max_sample_points::AbstractVector{T} = [.017037, .066987, .1465, .25, .37059,
-                                                               .5, .62941, .75, .85355, .93301, .98296]) where {T <: Real}
+                                                               .5, .62941, .75, .85355, .93301, .98296],
+                   use_sparse::Bool = false) where {T <: Real}
 
     nₓ = length(x)
 
@@ -231,34 +233,36 @@ function SLM_cubic(x::AbstractVector{T}, y::AbstractVector{T}, y_scale::T, y_shi
     xbin = bin_sort(x, knots)
 
     # design matrix
-    Mdes = construct_design_matrix(x, knots, dknots, xbin, nₓ, nk, nc)
+    Mdes = construct_design_matrix(x, knots, dknots, xbin, nₓ, nk, nc; use_sparse = use_sparse)
     rhs = y
 
     ## Regularizer
-    Mreg = construct_regularizer(dknots, nk)
+    Mreg = construct_regularizer(dknots, nk; use_sparse = use_sparse)
     rhsreg = zeros(T, nk)
 
     ## C2 continuity across knots
     if C2
-        Meq, rhseq = C2_matrix(nk, nc, dknots, Meq, rhseq)
+        Meq, rhseq = C2_matrix(nk, nc, dknots, Meq, rhseq; use_sparse = use_sparse)
     end
 
     ## Left and right values
     if !isnan(left_value)
-        Meq, rhseq = set_left_value(left_value, nc, Meq, rhseq)
+        Meq, rhseq = set_left_value(left_value, nc, Meq, rhseq; use_sparse = use_sparse)
     end
 
     if !isnan(right_value)
-        Meq, rhseq = set_right_value(right_value, nc, nk, Meq, rhseq)
+        Meq, rhseq = set_right_value(right_value, nc, nk, Meq, rhseq; use_sparse = use_sparse)
     end
 
     # Global minimum and maximum values
     if !isnan(min_value)
-        Mineq, rhsineq = set_min_value(min_value, nk, nc, dknots, Mineq, rhsineq; sample_points = min_max_sample_points)
+        Mineq, rhsineq = set_min_value(min_value, nk, nc, dknots, Mineq, rhsineq; sample_points = min_max_sample_points,
+                                       use_sparse = use_sparse)
     end
 
     if !isnan(max_value)
-        Mineq, rhsineq = set_max_value(max_value, nk, nc, dknots, Mineq, rhsineq; sample_points = min_max_sample_points)
+        Mineq, rhsineq = set_max_value(max_value, nk, nc, dknots, Mineq, rhsineq; sample_points = min_max_sample_points,
+                                       use_sparse = use_sparse)
     end
 
     ## Monotonicity restrictions
@@ -293,7 +297,8 @@ function SLM_cubic(x::AbstractVector{T}, y::AbstractVector{T}, y_scale::T, y_shi
 
     # Add inequalities enforcing monotonicity
     if !isempty(monotone_settings)
-        Mineq, rhsineq = construct_monotonicity_matrix(monotone_settings, nc, nk, dknots, total_monotone_intervals, Mineq, rhsineq)
+        Mineq, rhsineq = construct_monotonicity_matrix(monotone_settings, nc, nk, dknots, total_monotone_intervals, Mineq, rhsineq;
+                                                       use_sparse = use_sparse)
     end
 
     ## Concavity
@@ -323,7 +328,7 @@ function SLM_cubic(x::AbstractVector{T}, y::AbstractVector{T}, y_scale::T, y_shi
 
     # Add inequalities enforcing curvature
     if !isempty(curvature_settings)
-        Mineq, rhsineq = construct_curvature_matrix(curvature_settings, nc, nk, knots, dknots, Mineq, rhsineq)
+        Mineq, rhsineq = construct_curvature_matrix(curvature_settings, nc, nk, knots, dknots, Mineq, rhsineq; use_sparse = use_sparse)
     end
 
     # scale equalities for unit absolute row sum

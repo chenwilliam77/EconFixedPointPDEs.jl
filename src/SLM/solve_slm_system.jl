@@ -61,7 +61,12 @@ function solve_slm_system(Mdes::AbstractMatrix{S}, rhs::AbstractVector{S},
                           use_adnls::Bool = true, use_sparse::Bool = true,
                           verbose::Symbol = :low, kwargs...) where {S <: Real}
 
-    Mfit = vcat(Mdes, Mreg .* λ)
+    if use_sparse && all([issparse(x) for x in [Mdes, Mreg, Meq, Mineq]])
+        # Don't spend time converting already sparse matrices
+        use_sparse = false
+    end
+
+    Mfit = use_sparse ? vcat(sparse(Mdes), sparse(Mreg) .* λ) : vcat(Mdes, Mreg .* λ)
     rhsfit = vcat(rhs, rhsreg .* λ)
 
     if verbose == :high
@@ -84,10 +89,6 @@ function solve_slm_system(Mdes::AbstractMatrix{S}, rhs::AbstractVector{S},
         end
 
         if use_adnls
-            if use_sparse
-                Mfit = sparse(Mfit)
-            end
-
             if isempty(init)
                 init = zeros(S, size(Mfit, 2))
             end

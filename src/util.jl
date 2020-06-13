@@ -90,3 +90,20 @@ function mat_to_jld2(fn::String, outfn::String)
         end
     end
 end
+
+"""
+```
+sparse_accumarray(subs, val, sz=(maximum(subs),))
+```
+
+constructs a sparse array using the same algorithm as
+`accumarray`. See either `VectorizedRoutines.jl` or
+MATLAB's documentation for more details
+"""
+function sparse_accumarray(subs, val, sz=(maximum(subs),))
+    A = spzeros(eltype(val), sz...)
+    for i = 1:length(val)
+        @inbounds A[subs[i]] += val[i]
+    end
+    A
+end
