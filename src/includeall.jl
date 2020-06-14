@@ -1,7 +1,7 @@
 # using DifferentialEquations,
 using FastGaussQuadrature, FileIO, ForwardDiff, Interpolations, JLD2, LinearAlgebra
 using ModelConstructors, NLsolve, NLPModelsIpopt, OrderedCollections, OrdinaryDiffEq, Printf, Random, Roots
-using SparseArrays, StatsBase, VectorizedRoutines.Matlab
+using SparseArrays, StaticArrays, StatsBase, UnPack, VectorizedRoutines.Matlab
 
 using EconPDEs: StateGrid
 using NLPModels: ADNLSModel, LLSModel , FeasibilityFormNLS#, @lencheck, AbstractNLSModel, NLPModelMeta, NLSMeta, NLSCounters

@@ -47,3 +47,55 @@ function set_boundary_conditions!(m::AbstractNLCTModel, k::Symbol, v::AbstractAr
     bc = get_setting(m, :boundary_conditions)
     bc[k] = v
 end
+
+# SOMETHING WE MAY WANT TO ADD: SOMETHING THAT AUTO-WRITES A MODEL OBJECT VIA @abstractnlctmodel
+# given what should belong in the fields.
+
+"""
+```
+initialize!(m::AbstractNLCTModel)
+```
+
+sets up the standard initial conditions for `AbstractNLCTModel` objects based on
+information contained in `m`, such as the grid and initial values for variables.
+
+Notably, boundary conditions are NOT set by this function. If no boundary conditions
+are found for a model, then this package will assume reflecting boundaries by default.
+"""
+function initialize!(m::AbstractNLCTModel)
+
+    # Currently only works for one-dimensional models. Later we'll figure out how we want to extend to 2D and multi-dimensional models
+    # (e.g. by changing the setting called)
+    model_type = eltype(m)
+    N          = get_setting(m, :N)
+
+    # Create StateGrid object
+    stategrid = initialize_stategrid(haskey(get_settings(m, :stategrid_method) ? get_setting(m, :stategrid_method) : :uniform),
+                                     get_setting(m, :stategrid_dimensions))
+
+    # Construct dictionary of functional variables
+    funcvar = OrderedDict{Symbol, Vector{model_type}}()
+    for k in keys(get_functional_variables(m))
+        funcvar[k] = Vector{model_type}(undef, N)
+    end
+
+    # Construct dictionary of derivatives
+    derivs = OrderedDict{Symbol, Vector{model_type}}()
+    for k in keys(get_derivatives(m))
+        derivs[k] = Vector{model_type}(undef, N)
+    end
+
+    # Construct dictionary of derivatives
+    derivs = OrderedDict{Symbol, Vector{model_type}}()
+    for k in keys(get_derivatives(m))
+        derivs[k] = Vector{model_type}(undef, N)
+    end
+
+    # Construct dictionary of endogenous variables
+    endo = OrderedDict{Symbol, Vector{model_type}}()
+    for k in keys(get_endogenous_variables(m))
+        endo[k] = Vector{model_type}(undef, N)
+    end
+
+    return stategrid, funcvar, derivs, endo
+end

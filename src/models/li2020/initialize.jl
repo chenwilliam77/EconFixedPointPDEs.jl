@@ -30,7 +30,6 @@ function initialize!(m::Li2020)
         derivs[k] = Vector{model_type}(undef, N)
     end
 
-
     # Construct dictionary of endogenous variables
     endo = OrderedDict{Symbol, Vector{model_type}}()
     for k in keys(get_endogenous_variables(m))
@@ -45,7 +44,7 @@ function initialize!(m::Li2020)
                               ((m[:AH] - m[:AL]) / (p₀ * m[:σK])^2 * p₀ + 1)
     ∂p∂wN = 0.
     set_boundary_conditions!(m, :p, [p₀, p₁])
-    set_boundary_conditions!(m, :∂p∂w, [∂p∂w0, ∂p∂wN])
+    set_boundary_conditions!(m, :∂p_∂w, [∂p∂w0, ∂p∂wN])
 
     # Settings for functional iteration
     m <= Setting(:κp_guess, vcat(0., exp.(range(log(1e-3), stop = log((p₁ - p₀) / p₁), length = 19))))

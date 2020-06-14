@@ -110,13 +110,14 @@ function init_model_indices!(m::Li2020)
     exogenous_shocks = collect([:K_sh, :N_sh]) # capital shock K, liquidity shock N
 
     # Variables for functional equations
-    functional_variables = collect([:p])
+    functional_variables = collect([:p, :Q̂, :xg])
 
     # Derivatives of variables
-    derivatives = collect([:∂p∂w])
+    init_derivatives!(m, stategrid)
+    derivatives = keys(get_derivatives(m))
 
     # Endogenous variables
-    endogenous_variables = collect([:Q, :ψ, :xK, :yK, :xg, :yg, :σp, :σ, :σh])
+    endogenous_variables = collect([:ψ, :xK, :yK, :yg, :σp, :σ, :σh])
 
     # Observables
     observables = keys(m.observable_mappings)
@@ -164,6 +165,7 @@ function Li2020(subspec::String = "ss0";
 
     # Set settings
     model_settings!(m)
+
     # default_test_settings!(m)
     for custom_setting in values(custom_settings)
         m <= custom_setting
@@ -182,6 +184,21 @@ function Li2020(subspec::String = "ss0";
     return m
 end
 
+"""
+```
+init_derivatives!(m::Li2020)
+```
+
+initializes the desired derivatives for the model
+"""
+function init_derivatives!(m::Li2020, statevars::Vector{Symbol})
+
+    # Determine which variables are to be differentiated
+    desired_derivs = Dict{Symbol, Vector{Int}}(:p => standard_derivs(1))
+
+    # Give to parser function the instructions
+    init_derivatives!(m, desired_derivs, statevars)
+end
 
 """
 ```
@@ -227,8 +244,6 @@ function init_parameters!(m::Li2020)
                    description = "Rate of retirement for bankers")
 end
 
-
-
 """
 ```
 model_settings!(m::Li2020)
@@ -239,7 +254,11 @@ function model_settings!(m::Li2020)
 
     # Investment functions
     m <= Setting(:Φ, quadratic_investment, "Internal investment function")
+    m <= Setting(:μK, growth_quadratic_investment, "Rate of capital growth")
     m <= Setting(:∂Φ, derivative_quadratic_investment_li2020, "Derivative of internal investment function")
+
+    # Variables to differentiate
+    m <= Setting(:differential_variables, [:p], "Variables that will be differentiated via finite differences")
 
     # Numerical settings for grid
     m <= Setting(:N, 100, "Grid size")
@@ -262,11 +281,15 @@ function model_settings!(m::Li2020)
     m <= Setting(:v₀, 3e-8, "Parameter for damping function")
     m <= Setting(:damping_function, x -> get_setting(m, :v₀) ./ x, "Dampling function to avoid corners")
     m <= Setting(:p₀_perturb, 1e-14, "Perturbation of boundary condition for q at w = 0")
-    m <= Setting(:κp_grid, Vector{Float64}(undef, 0), "Vector of guesses for κp used during iteration for new κp and xK within each functional loop")
+    m <= Setting(:κp_grid, Vector{Float64}(undef, 0),
+                 "Vector of guesses for κp used during iteration for new κp and xK within each functional loop")
     m <= Setting(:p_fitted_interpolant, Gridded(Linear()), "Interpolant method for fitted p.")
     m <= Setting(:xK_interpolant, Gridded(Linear()), "Interpolant method for xK after solving xK for each guess of κp.")
     m <= Setting(:xg_interpolant, Gridded(Linear()), "Interpolant method for xg after solving xK and κp.")
     m <= Setting(:κp_interpolant, Gridded(Linear()), "Interpolant method for κp after solving xK and κp.")
+    m <= Setting(:yg_tol, 1e-5, "Lowest permissible value for yg")
+    m <= Setting(:firesale_bound, 0.99, "Upper bound for size of firesale jumps that do not wipe out a banker's net worth")
+    m <= Setting(:firesale_interpolant, Gridded(Linear()), "Interpolant method for the firesale value.")
 
     # Other settings for initialization
     m <= Setting(:nojump_parameters, [:ρ, :AH, :AL, :σK, :χ, :δ], "Keys of parameters used when solving the no-jump equilibrium.")
@@ -278,5 +301,4 @@ function model_settings!(m::Li2020)
 
     # Simulation settings
     m <= Setting(:dt, 1. / 12., "Simulation interval as a fraction of a 1 year")
-
 end

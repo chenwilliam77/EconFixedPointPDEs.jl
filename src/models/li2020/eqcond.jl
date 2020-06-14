@@ -7,30 +7,40 @@ constructs the main loop of the functional iteration when solving
 equilibrium in Li (2020) with jumps.
 """
 function eqcond(m::Li2020)
-    # θ = parameters_to_named_tuple(get_parameters(m))
 
     # Unpack items from m that are needed to construct the functional loop
     p_fitted_interpolant  = get_setting(m, :p_fitted_interpolant)
     xK_fitted_interpolant = get_setting(m, :xK_fitted_interpolant)
     xg_fitted_interpolant = get_setting(m, :xg_fitted_interpolant)
     κp_fitted_interpolant = get_setting(m, :κp_fitted_interpolant)
+    firesale_interpolant  = get_setting(m, :firesale_interpolant)
+    Q̂_interpolant         = get_setting(m, :Q̂_interpolant)
     Φ = get_setting(m, :Φ)
     Q = get_setting(m, :gov_bond_gdp_level) * get_setting(m, :avg_gdp)
     p₀, p₁ = boundary_conditions(m)[:p]
     max_jump = (p₁ - p₀) / p₁
     κp_grid = get_setting(m, :κp_grid)
     damping_function = get_setting(m, :damping_function)
+    f_μK = get_setting(m, :μK)
+    yg_tol = get_setting(m, :yg_tol)
+    firesale_bound = get_setting(m, :firesale_bound)
+    N_GH = get_setting(m, :N_GH)
+    Q̂_tol = get_setting(m, :Q̂_tol)
+    Q̂_max_it = get_setting(m, :Q̂_max_it)
 
     # Construct the initial guess for p by interpolating the solution from
     # the no jump equilibrium via SLM
 
     # The functional loop should return the proposals for the new values of the variables
     # over which we are iterating. For Li (2020), these are p, xg, and Q̂.
-    f = function _functional_loop_li2020(stategrid::StateGrid, funcvar::OrderedDict{Symbol, AbstractVector},
-                                         derivs::OrderedDict{Symbol, AbstractVector},
-                                         endo::OrderedDict{Symbol, AbstractVector{S}}, θ::NamedTuple,
-                                         init_coef::AbstractVector{S};
-                                         verbose::Symbol = :low) where {S <: Real}
+    f = function _functional_loop_li2020(stategrid::StateGrid, funcvar::OrderedDict{Symbol, Vector{S}},
+                                         derivs::OrderedDict{Symbol, Vector{S}},
+                                         endo::OrderedDict{Symbol, Vector{S}}, θ::NamedTuple;
+                                         init_coefs::OrderedDict{Symbol, Vector{S}} =
+                                         OrderedDict{Symbol, Vector{S}}(:p => Vector{S}(undef, 0)),
+                                         individual_convergence::OrderedDict{Symbol, Vector{S}} =
+                                         OrderedDict{Symbol, Vector{S}}(),
+                                         verbose::Symbol = :none) where {S <: Real}
 
         # Unpack variables of interest
         p    = funcvar[:p]
@@ -82,14 +92,10 @@ function eqcond(m::Li2020)
         # Where was the fixed point system correctly solved?
         solved_index = findall(map(i -> solved_xK[i] && solved_xg[i] && solved_κp[i], 1:length(w)))
 
-        if verbose == :low || verbose == :high
-            @info "$(100 * (length(solved_index) + 1) / length(w))% is solved"
-        end
-
         # Solve for p over the whole grid by interpolating over points with success
         p_new_slm = SLM(w[solved_index], p_new[solved_index]; increasing = true,
                         concave_down = true, left_value = p₀, right_value = p₁,
-                        knots = Int(round(count(solved_index) / 2)), init = init_coef)
+                        knots = Int(round(count(solved_index) / 2)), init = init_coefs[:p])
         p_new = slmeval(w, p_new_slm)
 
         # An alternative to slm: p_new_spl  = Spline1D(w[solved_index], p_new[solved_index], bc = "extrapolate")
@@ -108,9 +114,28 @@ function eqcond(m::Li2020)
         xg_new .= xg_new_spl(w)
         κp_new .= κp_new_spl(w)
 
+        if verbose == :high
+            println("$(100 * (length(solved_index) + 1) / length(w))% of the inner iteration is solved")
+            println("Calculating Q̂ . . .")
+        end
+
         ## Step 3: Update Q̂ using simulation methods
+        calc_Q̂ = haskey(individual_convergence, :Q̂) ? individual_convergence[:Q̂][1] == 0. : true
 
+        if calc_Q̂
+            prepare_Q̂!(funcvar, derivs, endo, θ, f_μK, Φ, yg_tol, firesale_bound, firesale_interpolant, Q)
 
+            Q̂_new = Q̂_calculation(stategrid, funcvar[:Q̂], endo[:μw], endo[:σw],
+                                  endo[:κw], endo[:rf], endo[:rg], endo[:rh], Q, θ[:λ];
+                                  N_GH = N_GH, tol = Q̂_tol, max_it = Q̂_max_it, Q̂_interp_method = Q̂_interpolant)
+
+            if sum(abs.(Q̂_new - funcvar[:Q̂])) < individual_convergence[:Q̂][2]
+                individual_convergence[:Q̂][1] = 1.
+                println(verbose, :high, "Q̂ has converged!")
+            end
+        end
+
+        println(verbose, :high, "")
 
         return p_new, xg_new, Q̂_new
     end
@@ -307,12 +332,78 @@ end
 
 """
 ```
-prepare_Q̂
+function prepare_Q̂!(funcvar::OrderedDict{Symbol, Vector{S}}, derivs::OrderedDict{Symbol, Vector{S}}, endo::OrderedDict{Symbol, Vector{S}},
+                    θ::NamedTuple, f_μK::Function, Φ::Function, yg_tol::S, firesale_bound::S, firesale_interpolant::Function, Q::S) where {S <: Real}
 ```
 
-calculates the quantities needed for Q̂.
+calculates the quantities needed for Q̂. Most of this function is a copy of augment_variables!, but
+some quantities don't need to be calculated and have been omitted for speed purposes.
 """
-function prepare_Q̂()
+function prepare_Q̂!(funcvar::OrderedDict{Symbol, Vector{S}}, derivs::OrderedDict{Symbol, Vector{S}}, endo::OrderedDict{Symbol, Vector{S}},
+                    θ::NamedTuple, f_μK::Function, Φ::Function, yg_tol::S, firesale_bound::S, firesale_interpolant::Function, Q::S) where {S <: Real}
+    ψ, xK, yK, yg, σp, σ, σh, σw, μR_rd, rd_rg, μb_μh, μw, μp, μK, μR, rd, rg, μb, μh, κp, invst, κb, κd, κh, κfs, firesale_jump, κw, δ_x, indic, rf, rh = @unpack endo
+    p, xg, Q̂     = @unpack funcvar
+    ∂p∂w = derivs[:∂p_∂w]
+    w    = stategrid[:w]
+
+    # Calculate various quantities
+    ∂p∂w   .= differentiate(w, p)    # as Li (2020) does it
+    invst  .= map(x -> Φ(x, θ[:χ], θ[:δ]), p)
+    ψ      .= (invst .+ θ[:ρ] + (p + Q̂) .- θ[:AL]) ./ (θ[:AH] - θ[:AL])
+    ψ[ψ .> 1.] .= 1.
+
+    # Portfolio choices
+    xK   .= (ψ ./ w) .* (p ./ (p + Q̂))
+    xK[1] = xK[2]
+    yK   .= (p ./ (p + Q̂) - w .* xK)  ./ (1. .- w)
+    yK[1] = 1.
+    yK[end] = yK[end - 1]
+    yg   .= (Q ./ (p + Q̂) - w .* xg) ./ (1. .- w)
+    yg[end] = yg[end - 1]
+    yg[yg .< yg_tol] = yg_tol # avoid yg < 0
+    δ_x   .= max.(θ[:β] .* (xK + xg .- 1.) - xg, 0.)
+    indic .= δ_x .> 0.
+
+    # Volatilities
+    σp .= ∂p∂w .* w .* (1. .- w) .* (xK - yK) ./ (1. .- ∂p∂w .* w .* (1. .- w) .* (xK - yK)) .* θ[:σK]
+    σp[end] = 0. # no volatility at the end
+    σ  .= xK .* (θ[:σK] .+ σp)
+    σh .= yK .* (θ[:σK] .+ σp)
+
+    # Deal with post jump issues
+    firesale_jump .= xK .* κp + (θ[:α] / (1 - θ[:α])) .* δ_x
+    firesale_ind  = firesale_jump .< firesale_bound
+    firesale_spl  = interpolate(w[firesale_ind], firesale_jump[ind], firesale_interpolant)
+    extrapolate(firesale_spl, Line()) # linear extrapolation
+    firesale_jump .= firesale_spl(w)
+
+    # Jumps
+    κd  .= θ[:θ] .* (xK .+ θ[:e] .- 1.) ./ (xK + xg .- 1.) .* (xK .+ θ[:e] .> 1.)
+    κb  .= θ[:θ] .* min.(1. - θ[:e], xK) + (1. .- θ[:θ]) .* firesale_jump
+    κfs .= (θ[:α] / (1 - θ[:α])) .* δ_x .* w ./ (1. .- w.)
+    κfs[end] = 0.
+    κh  .= yK .* κp + (1. .- yK .- yg) .* κd - κfs
+    κw  .= 1. .- (1. .- κb) ./ (1. .- κh .- w .* (κb - κh))
+
+    # Main drifts and interest rates
+    μR_rd   .= (θ[:σK] + σp) .^ 2 .* xK - θ[:AH] ./ p + (θ[:λ] * (1 - θ[:θ])) .*
+        (κp + indic .* (θ[:α] / (1 - θ[:α]) * θ[:β])) ./ (1. .- firesale_jump) +
+         (xK .+ θ[:e] .< 1.) .* (θ[:λ] * θ[:θ]) ./ (1. .- xK)
+    rd_rg   .= (θ[:λ] * (1 - θ[:θ]) * (θ[:α] / (1 - θ[:α]) * θ[:β])) .* indic ./ (1. .- firesale_jump)
+    rd_rg_H .= θ[:λ] .* κd ./ (1. .- yK .* κp - (1. .- yK .- yg) .* κd + κfs)
+    index_xK = xK .<= 1. # In this scenario, the rd-rg difference must be solved from hh's FOC
+    rd_rg[index_xK] = rd_rg_H[index_xK]
+    μb_μh   .= (xK - yK) .* μR_rd + (xK .* θ[:AH] - yK .* θ[:AL]) ./ p - (xg - yg) .* rd_rg
+    μw      .= (1. .- w) .* (μb_μh + σh .^ 2 - σ .* σh - w .* (σ - σh) .^ 2 -
+                       θ[:η] ./ (1. .- w))
+    μw[end]  = μw[end - 1] # drift should be similar at the end
+
+    # Other interest rates
+    rd    .= μR - μR_rd
+    rg    .= rd - rd_rg
+    rd_rf .= (θ[:λ] * (1. - θ[:θ]) * θ[:α] / (1 - θ[:α]) * (-θ[:β])) .* indic ./ (1. .- firesale_jump)
+    rf    .= rd - rd_rf
+    rh    .= rd - θ[:λ] .* κd ./ (1. .- yK .* κp - (1. .- yK .- yg) .* κd .+ κfs) # risk free rate for households
 end
 
 """
@@ -389,7 +480,7 @@ with no jumps and the events deciding termination
 function eqcond_nojump(m::Li2020)
     Φ  = get_setting(m, :Φ)
     ∂Φ = get_setting(m, :∂Φ)
-    ∂p∂w0, ∂p∂wN = get_setting(m, :boundary_conditions)[:∂p∂w]
+    ∂p∂w0, ∂p∂wN = get_setting(m, :boundary_conditions)[:∂p_∂w]
 
     f1 = function _ode_nojump_li2020(p, θ, w)
         if w == 0.

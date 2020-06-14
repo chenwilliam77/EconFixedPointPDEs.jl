@@ -22,7 +22,8 @@ function initialize_stategrid(method::Symbol, grid_info::OrderedDict{Symbol, Tup
         end
     elseif method == :smolyak
         error("Construction of a Smolyak interpolation grid has not been implemented yet.")
-        # This should make a call to SmolyakApprox
+        # This should make a call to BasisMatrices from QuantEcon, as they have a nice user-friendly implementation of Smolyak.
+        # Alternatively, we can try SmolyakApprox, tho QuantEcon seems more likely to be well-maintained.
     else
         error("Grid construction method $method has not been implemented.")
     end
