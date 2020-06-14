@@ -35,5 +35,8 @@ d1[:increasing] = true
         @test isnan(di[:max_value])
         @test di[:min_max_sample_points] == [.017037, .066987, .1465, .25, .37059,
                                              .5, .62941, .75, .85355, .93301, .98296]
+        @test isempty(di[:init])
+        @test di[:use_sparse] == false
+        @test di[:use_lls]
     end
 end
