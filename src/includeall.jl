@@ -1,7 +1,7 @@
 # using DifferentialEquations,
 using FastGaussQuadrature, FileIO, ForwardDiff, Interpolations, JLD2, LinearAlgebra
 using ModelConstructors, NLsolve, NLPModelsIpopt, OrderedCollections, OrdinaryDiffEq, Printf, Random, Roots
-using SparseArrays, StaticArrays, StatsBase, UnPack, VectorizedRoutines.Matlab
+using SparseArrays, StatsBase, UnPack, VectorizedRoutines.Matlab
 
 using EconPDEs: StateGrid
 using NLPModels: ADNLSModel, LLSModel , FeasibilityFormNLS#, @lencheck, AbstractNLSModel, NLPModelMeta, NLSMeta, NLSCounters
@@ -23,6 +23,9 @@ include("auxiliary/investment.jl")
 
 # solve/
 include("solve/solve.jl")
+include("solve/differentiate.jl")
+include("solve/init_derivatives.jl")
+include("solve/util.jl")
 
 # SLM/
 include("SLM/slm.jl")

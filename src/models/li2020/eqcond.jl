@@ -27,6 +27,7 @@ function eqcond(m::Li2020)
     N_GH = get_setting(m, :N_GH)
     Q̂_tol = get_setting(m, :Q̂_tol)
     Q̂_max_it = get_setting(m, :Q̂_max_it)
+    dt = get_setting(m, :dt)
 
     # Construct the initial guess for p by interpolating the solution from
     # the no jump equilibrium via SLM
@@ -127,7 +128,7 @@ function eqcond(m::Li2020)
 
             Q̂_new = Q̂_calculation(stategrid, funcvar[:Q̂], endo[:μw], endo[:σw],
                                   endo[:κw], endo[:rf], endo[:rg], endo[:rh], Q, θ[:λ];
-                                  N_GH = N_GH, tol = Q̂_tol, max_it = Q̂_max_it, Q̂_interp_method = Q̂_interpolant)
+                                  N_GH = N_GH, tol = Q̂_tol, max_it = Q̂_max_it, Q̂_interp_method = Q̂_interpolant, dt = dt)
 
             if sum(abs.(Q̂_new - funcvar[:Q̂])) < individual_convergence[:Q̂][2]
                 individual_convergence[:Q̂][1] = 1.
@@ -341,8 +342,8 @@ some quantities don't need to be calculated and have been omitted for speed purp
 """
 function prepare_Q̂!(funcvar::OrderedDict{Symbol, Vector{S}}, derivs::OrderedDict{Symbol, Vector{S}}, endo::OrderedDict{Symbol, Vector{S}},
                     θ::NamedTuple, f_μK::Function, Φ::Function, yg_tol::S, firesale_bound::S, firesale_interpolant::Function, Q::S) where {S <: Real}
-    ψ, xK, yK, yg, σp, σ, σh, σw, μR_rd, rd_rg, μb_μh, μw, μp, μK, μR, rd, rg, μb, μh, κp, invst, κb, κd, κh, κfs, firesale_jump, κw, δ_x, indic, rf, rh = @unpack endo
-    p, xg, Q̂     = @unpack funcvar
+    @unpack ψ, xK, yK, yg, σp, σ, σh, σw, μR_rd, rd_rg, μb_μh, μw, μp, μK, μR, rd, rg, μb, μh, κp, invst, κb, κd, κh, κfs, firesale_jump, κw, δ_x, indic, rf, rh = endo
+    p, xg, Q̂ = funcvar
     ∂p∂w = derivs[:∂p_∂w]
     w    = stategrid[:w]
 
@@ -373,14 +374,13 @@ function prepare_Q̂!(funcvar::OrderedDict{Symbol, Vector{S}}, derivs::OrderedDi
     # Deal with post jump issues
     firesale_jump .= xK .* κp + (θ[:α] / (1 - θ[:α])) .* δ_x
     firesale_ind  = firesale_jump .< firesale_bound
-    firesale_spl  = interpolate(w[firesale_ind], firesale_jump[ind], firesale_interpolant)
-    extrapolate(firesale_spl, Line()) # linear extrapolation
+    firesale_spl  = extrapolate(interpolate(w[firesale_ind], firesale_jump[ind], firesale_interpolant), Line()) # linear extrapolation
     firesale_jump .= firesale_spl(w)
 
     # Jumps
-    κd  .= θ[:θ] .* (xK .+ θ[:e] .- 1.) ./ (xK + xg .- 1.) .* (xK .+ θ[:e] .> 1.)
+    κd  .= θ[:θ] .* (xK .+ θ[:e] .- 1.) ./ (xK .+ xg .- 1.) .* (xK .+ θ[:e] .> 1.)
     κb  .= θ[:θ] .* min.(1. - θ[:e], xK) + (1. .- θ[:θ]) .* firesale_jump
-    κfs .= (θ[:α] / (1 - θ[:α])) .* δ_x .* w ./ (1. .- w.)
+    κfs .= (θ[:α] / (1 - θ[:α])) .* δ_x .* w ./ (1. .- w)
     κfs[end] = 0.
     κh  .= yK .* κp + (1. .- yK .- yg) .* κd - κfs
     κw  .= 1. .- (1. .- κb) ./ (1. .- κh .- w .* (κb - κh))
@@ -418,13 +418,15 @@ calculates Q̂ using Gauss-Hermite quadrature.
 """
 function Q̂_calculation(stategrid::StateGrid, Q̂::AbstractVector{S}, μw::AbstractVector{S}, σw::AbstractVector{S},
                        κw::AbstractVector{S}, rf::AbstractVector{S}, rg::AbstractVector{S}, rh::AbstractVector{S}, Q::S, λ::S;
-                       N_GH::Int = 10, tol::S = 1e-5, max_it::Int = 1000, Q̂_interp_method = Gridded(Linear()),
+                       N_GH::Int = 10, tol::S = 1e-5, max_it::Int = 1000, Q̂_interp_method = Gridded(Linear()), dt::S = 1. / 12.,
                        testing::Bool = false) where {S <: Real}
 
     ## Set up
     spread = rf - rg
-    ϵ_nodes, weight_nodes = gausshermite(N_GH)
-    sort!(ϵ_nodes, rev = true) # to match the implementation by Maliar and Maliar (see the replication package for Li (2020))
+    ϵ_nodes, weight_nodes = gausshermite(N_GH) # approximates exp(-x²)
+    ϵ_nodes .*= sqrt(2)      # Normalize ϵ and weight nodes to correctly
+    weight_nodes ./= sqrt(π) # approximate a standard Normal distribution
+
     if testing
         err_vec = Vector{S}(undef, max_it)
     end
@@ -433,12 +435,13 @@ function Q̂_calculation(stategrid::StateGrid, Q̂::AbstractVector{S}, μw::Abst
     err     = 1.
     iter_no = 0
     while (err > tol) && (iter_no < max_it)
-        iter_no += 1
-        Q̂_last = copy(Q̂)
-        Q̂_interp = interpolate(stategrid[:w], Q̂_last, Q̂_interp_method)
-
+        iter_no += 1     # Benchmark tests show that, when length(stategrid[:w]) = 100, copying w/in while loop is faster
+        Q̂_last = copy(Q̂) # than having this defined outside the while loop by 5-6 ms. Also 100 times faster than MATLAB!
+        Q̂_interp = extrapolate(interpolate((stategrid[:w], ), Q̂_last,
+                                           Q̂_interp_method), Line())  # Linear extrapolation
         # Calculate Q̂ everywhere except w = 0
         for i in 2:length(stategrid[:w])
+
             # Unpack objects characterizing equilibrium
             wᵢ  = stategrid[:w][i]
             μwᵢ = μw[i]
@@ -446,7 +449,7 @@ function Q̂_calculation(stategrid::StateGrid, Q̂::AbstractVector{S}, μw::Abst
             κwᵢ = κw[i]
 
             # Calculate expectation
-            w_noshock   = wᵢ .* (1. .+ μw * dt .+ σw .* ϵ_nodes)
+            w_noshock   = wᵢ .* (1. .+ μwᵢ * dt .+ σwᵢ .* ϵ_nodes)
             w_shock     = w_noshock .- wᵢ .* κwᵢ
             expectation = (1. - λ * dt) * (weight_nodes' * Q̂_interp(w_noshock)) + λ * dt * (weight_nodes' * Q̂_interp(w_shock))
             Q̂[i]        =  Q * spread[i] * dt + exp(-rf[i] * dt) * expectation

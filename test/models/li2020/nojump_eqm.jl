@@ -11,7 +11,7 @@ sol = solve(prob, get_setting(m, :ode_integrator),
             reltol = get_setting(m, :ode_reltol),
             abstol = get_setting(m, :ode_abstol), callback = ode_callback)
 
-true_soln = h5read("../../reference/li2020_nojump_eqm.h5", "p_DP5")
+true_soln = h5read("../../reference/models/li2020/li2020_nojump_eqm.h5", "p_DP5")
 @testset "Baseline solution for no jump equilibrium" begin
     @test @test_matrix_approx_eq sol.u true_soln
 end

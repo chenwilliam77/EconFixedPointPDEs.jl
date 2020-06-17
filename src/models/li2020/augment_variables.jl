@@ -18,9 +18,9 @@ function augment_variables(m::Li2020, stategrid::StateGrid, funcvar::OrderedDict
                            endo::OrderedDict{Symbol, AbstractVector{S}}) where {S <: Real}
 
     # Unpack equilibrium endogenous variables and stategrid
-    ψ, xK, yK, yg, σp, σ, σh, σw, μR_rd, rd_rg, μb_μh, μw, μp, μK, μR, rd, rg, μb, μh, invst, lvg, κp, κb, κd, κh, κfs, firesale_jump, κw, liq_prem, bank_liq_frac, δ_x, indic, rf, rh, K_growth, κK = @unpack endo
-    p, xg, Q̂     = @unpack funcvar
-    ∂p∂w, ∂²p∂w² = @unpack derivs
+    @unpack ψ, xK, yK, yg, σp, σ, σh, σw, μR_rd, rd_rg, μb_μh, μw, μp, μK, μR, rd, rg, μb, μh, invst, lvg, κp, κb, κd, κh, κfs, firesale_jump, κw, liq_prem, bank_liq_frac, δ_x, indic, rf, rh, K_growth, κK = endo
+    @unpack p, xg, Q̂     = funcvar
+    @unpack ∂p∂w, ∂²p∂w² = derivs
     w    = stategrid[:w]
     θ    = parameters_to_named_tuple(get_parameters(m))
     f_μK = get_setting(m, :μK)
@@ -66,7 +66,7 @@ function augment_variables(m::Li2020, stategrid::StateGrid, funcvar::OrderedDict
     # Jumps
     κd  .= θ[:θ] .* (xK .+ θ[:e] .- 1.) ./ (xK + xg .- 1.) .* (xK .+ θ[:e] .> 1.)
     κb  .= θ[:θ] .* min.(1. - θ[:e], xK) + (1. .- θ[:θ]) .* firesale_jump
-    κfs .= (θ[:α] / (1 - θ[:α])) .* δ_x .* w ./ (1. .- w.)
+    κfs .= (θ[:α] / (1 - θ[:α])) .* δ_x .* w ./ (1. .- w)
     κfs[end] = 0.
     κh  .= yK .* κp + (1. .- yK .- yg) .* κd - κfs
     κw  .= 1. .- (1. .- κb) ./ (1. .- κh .- w .* (κb - κh))
@@ -210,7 +210,7 @@ function augment_variables_nojump!(m::Li2020, stategrid::StateGrid, funcvar::Ord
     derivs[:∂p_∂w] = similar(p)
     ∂p∂w   = derivs[:∂p_∂w]
     ∂²p∂w² = derivs[:∂²p_∂w²]
-    ψ, xK, yK, yg, σp, σ, σh, μR_rd, rd_rg, μb_μh, μw, μp, μK, μR, rd, rg, μb, μh = @unpack endo
+    @unpack ψ, xK, yK, yg, σp, σ, σh, μR_rd, rd_rg, μb_μh, μw, μp, μK, μR, rd, rg, μb, μh = endo
     w      = stategrid[:w]
     θ = parameters_to_named_tuple(map(x -> get_parameters(m)[get_keys(m)[x]], get_setting(m, :nojump_parameters)))
     f_μK = get_setting(m, :μK)

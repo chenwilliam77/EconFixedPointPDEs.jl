@@ -9,7 +9,7 @@ Should also be clear on the requisites for func_iter.
 function solve(m::AbstractNLCTModel, init_guess::OrderedDict = OrderedDict{Symbol, Vector{Float64}}();
                nojump::Bool = false, nojump_method::Symbol = :ode, update_method::Symbol = :average,
                init_slm_coefs::OrderedDict = OrderedDict{Symbol, Vector{Float64}}(),
-               individual_convergence::OrderedDict{Symbol, StaticVector{Float64}}(),
+               individual_convergence::OrderedDict{Symbol, Vector{Float64}} = OrderedDict{Symbol, Vector{Float64}}(),
                error_calc::Symbol = :total_error, type_checks::Bool = true, verbose::Symbol = :none)
 
     if nojump
@@ -45,7 +45,7 @@ function solve(m::AbstractNLCTModel, init_guess::OrderedDict = OrderedDict{Symbo
 
         # We can stop updating individual functional variables prematurely.
         # The OrderedDict individual_convergence maps functional variables
-        # to a two-element StaticVector. The first element must be either 1 or 0,
+        # to a two-element Vector. The first element must be either 1 or 0,
         # and the second element is the tolerance for convergence.
         converge_individually = !isempty(individual_convergence)
 
@@ -165,7 +165,7 @@ and Chebyshev/Smolyak projection via BasisMatrices.jl/SmolyakApprox.jl
 function solve_nojump(m::AbstractNLCTModel; method::Symbol = :ode, verbose::Symbol = :none)
     stategrid, functional_variables, derivatives, endogenous_variables = initialize!(m)
 
-    if method == :ode && ndims(stategrid) == 1 # Univariate no jump model => use ODE methods
+    if (method == :ode || method == :ODE) && ndims(stategrid) == 1 # Univariate no jump model => use ODE methods
         s = collect(keys(get_stategrid(m)))[1] # state variable name
         ode_f, ode_callback = eqcond_nojump(m)
 

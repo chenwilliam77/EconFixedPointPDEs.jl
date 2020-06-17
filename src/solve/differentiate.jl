@@ -13,14 +13,14 @@ You trigger this by adding a setting to your model object.
 Use derivative order of the derivative operator to infer
 the correct symbol name.
 """
-function differentiate(stategrid::StateGrid, diffvar::Dict{Symbol, Vector{S}},
-                       derivs::Dict{Symbol, Vector{AbstractDerivativeOperator}}) where {S <: Real}
-    for (k, v) in derivs
-        for state in keys(stategrid.x)
-	        derivatives[Symbol(:∂, k :_∂, state)] = operators[:A] * v
-        end
-    end
-end
+# function differentiate(stategrid::StateGrid, diffvar::Dict{Symbol, Vector{S}},
+#                        derivs::Dict{Symbol, Vector{AbstractDerivativeOperator}}) where {S <: Real}
+#     for (k, v) in derivs
+#         for state in keys(stategrid.x)
+# 	        derivatives[Symbol(:∂, k :_∂, state)] = operators[:A] * v
+#         end
+#     end
+# end
 
 """
 ```

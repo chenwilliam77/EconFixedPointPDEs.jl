@@ -1,21 +1,23 @@
 # Extend later to multiple dimensions by using multple dispatch, probably we'll now use a Vector of Tuples of Ints
-function init_derivatives!(m::AbstractNLCTModel, instructions::Dict{Symbol, Vector{Int}}), statevars::Vector{Symbol})
+function init_derivatives!(m::AbstractNLCTModel, instructions::Dict{Symbol, Vector{Int}}, statevars::Vector{Symbol})
 
     derivs = get_derivatives(m)
     state = statevars[1]
 
+    n = length(derivs) # Get existing length of derivatives that have already been added
     for (k, v) in instructions
         for i in v
+            n += 1
             if i == 1
-                derivs[Symbol(:∂, k, :_∂, state)]
+                derivs[Symbol(:∂, k, :_∂, state)] = n
             elseif i == 2
-                derivs[Symbol(:∂², k, :_∂, state, :²)]
+                derivs[Symbol(:∂², k, :_∂, state, "²")] = n
             end
         end
     end
 end
 
-function init_derivatives!(m::AbstractNLCTModel, instructions::Dict{Symbol, Vector{Tuple{Int, Int}}}), statevars::Vector{Symbol})
+function init_derivatives!(m::AbstractNLCTModel, instructions::Dict{Symbol, Vector{Tuple{Int, Int}}}, statevars::Vector{Symbol})
 
     derivs = get_derivatives(m)
     state1 = statevars[1]
@@ -26,11 +28,11 @@ function init_derivatives!(m::AbstractNLCTModel, instructions::Dict{Symbol, Vect
             if i == (1, 0)
                 derivs[Symbol(:∂, k, :_∂, state1)]
             elseif i == (2, 0)
-                derivs[Symbol(:∂², k, :_∂, state1, :²)]
+                derivs[Symbol(:∂², k, :_∂, state1, "²")]
             elseif i == (0, 1)
                 derivs[Symbol(:∂, k, :_∂, state2)]
             elseif i == (0, 2)
-                derivs[Symbol(:∂², k, :_∂, state2, :²)]
+                derivs[Symbol(:∂², k, :_∂, state2, "²")]
             elseif i == (1, 1)
                 derivs[Symbol(:∂², k, :_∂, state1, :∂, state2)]
             end
@@ -58,8 +60,17 @@ The instructions are returned as a Vector of Ints or Vector of Tuples of Ints.
 """
 function standard_derivs(dims::Int)
     if dims == 1
-        return Vector{Int}[1, 2]
+        v = Vector{Int}(undef, 2)
+        v[1] = 1
+        v[2] = 2
+        return v
     elseif dims == 2
-        return Vector{Tuple{Int, Int}}[(1, 0), (0, 1), (2, 0), (1, 1), (0, 2)]
+        v = Vector{Tuple{Int, Int}}(undef, 5)
+        v[1] = (1, 0)
+        v[2] = (0, 1)
+        v[3] = (2, 0)
+        v[4] = (1, 1)
+        v[5] = (0, 2)
+        return v
     end
 end
