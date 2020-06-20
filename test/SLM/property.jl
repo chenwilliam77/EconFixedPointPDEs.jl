@@ -1,6 +1,6 @@
 using Test, FileIO, ModelConstructors
-include("../../src/includeall.jl")
-rp = "../reference/SLM" # reference path
+include(joinpath(dirname(@__FILE__), "../../src/includeall.jl"))
+rp = joinpath(dirname(@__FILE__), "../reference/SLM") # reference path
 
 # Set up inputs
 input_inc = load(joinpath(rp, "find_solution_input.jld2"))

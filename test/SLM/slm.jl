@@ -1,7 +1,7 @@
 using Test, FileIO
-include("../../src/includeall.jl")
+include(joinpath(dirname(@__FILE__), "../../src/includeall.jl"))
 
-rp = "../reference/SLM"
+rp = joinpath(dirname(@__FILE__), "../reference/SLM")
 in_inc = load(joinpath(rp, "find_solution_input.jld2"))
 in_dec = load(joinpath(rp, "find_solution_input_decrease.jld2"))
 in_sin = load(joinpath(rp, "find_solution_input_sine.jld2"))

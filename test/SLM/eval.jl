@@ -1,8 +1,8 @@
 using Test, ModelConstructors
-include("../../src/includeall.jl")
+include(joinpath(dirname(@__FILE__), "../../src/includeall.jl"))
 
 # TEST USING SLM OBJECT THAT IT MATCHES THE DESIRED OUTPUT
-rp = "../reference/SLM"
+rp = joinpath(dirname(@__FILE__), "../reference/SLM")
 in_inc = load(joinpath(rp, "eval.jld2"))
 in_dec = load(joinpath(rp, "eval_decrease.jld2"))
 in_sin = load(joinpath(rp, "eval_sine.jld2"))

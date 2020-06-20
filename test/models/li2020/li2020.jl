@@ -1,5 +1,5 @@
 using Test
-include("../../../src/includeall.jl")
+include(joinpath(dirname(@__FILE__), "../../../src/includeall.jl"))
 
 @testset "Instantiation" begin
     Li2020()

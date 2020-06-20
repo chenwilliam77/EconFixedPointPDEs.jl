@@ -1,10 +1,9 @@
 using Test, FileIO
-include("../../src/includeall.jl")
+include(joinpath(dirname(@__FILE__), "../../src/includeall.jl"))
 
-
-mat_inc = load("../reference/SLM/histc.jld2")
-mat_dec = load("../reference/SLM/histc.jld2")
-mat_sin = load("../reference/SLM/histc.jld2")
+mat_inc = load(joinpath(dirname(@__FILE__), "../reference/SLM/histc.jld2"))
+mat_dec = load(joinpath(dirname(@__FILE__), "../reference/SLM/histc.jld2"))
+mat_sin = load(joinpath(dirname(@__FILE__), "../reference/SLM/histc.jld2"))
 
 @testset "bin_sort" begin
     for mat_dic in [mat_inc, mat_dec, mat_sin]
