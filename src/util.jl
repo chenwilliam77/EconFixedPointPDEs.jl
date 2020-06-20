@@ -6,6 +6,10 @@ function parameters_to_named_tuple(pvec::AbstractVector{S}) where {S <: Abstract
     return NamedTuple{tuple_names}(tuple_vals)
 end
 
+function parameters_to_named_tuple(pvec::AbstractModel)
+    return parameters_to_named_tuple(get_parameters(pvec))
+end
+
 """
 ```
 detexify(s::String)
