@@ -126,6 +126,7 @@ function eqcond(m::Li2020)
         if calc_Q̂
             prepare_Q̂!(funcvar, derivs, endo, θ, f_μK, Φ, yg_tol, firesale_bound, firesale_interpolant, Q)
 
+            # MAY WANT TO UPDATE THIS. IN THE ORIGINAL CODE, WE USE ZEROS FOR THE GUESS OF QHAT RATHER THAN THE PREVIOUS GUESS.
             Q̂_new = Q̂_calculation(stategrid, funcvar[:Q̂], endo[:μw], endo[:σw],
                                   endo[:κw], endo[:rf], endo[:rg], endo[:rh], Q, θ[:λ];
                                   N_GH = N_GH, tol = Q̂_tol, max_it = Q̂_max_it, Q̂_interp_method = Q̂_interpolant, dt = dt)
@@ -171,7 +172,7 @@ function inside_iteration_li2020(w::S, p_interp, p::S, ∂p∂w::S, xK0::S, xg0:
     I_f   = (xK, xg) -> θ[:β] .* (xK .+ xg .- 1.) .- xg .> 0.
     κd_f  = (xK, xg) -> θ[:θ] .* max.(xK .+ 1e-1, 0.) ./ (xK .+ xg .- 1.)
     κfs_f = (xK, xg) = θ[:α] ./ (1. .- θ[:α]) .* δₓ_f(xK, xg) .* w  ./ (1. .- w)
-    κb_f  = (κp, xK) -> θ[:θ] .* (1. .- θ[:e]) .+ (1. .- θ[:θ]) .* (xK .* κp .+ θ[:α] ./ (1. .- θ[:α]) .* δₓ_f(xK, xg))
+    κb_f  = (κp, xK) -> θ[:θ] .* (1. .- θ[:ϵ]) .+ (1. .- θ[:θ]) .* (xK .* κp .+ θ[:α] ./ (1. .- θ[:α]) .* δₓ_f(xK, xg))
     κh_f  = (κp, xK) -> yK_f(xK) .* κp .+ (1. .- yK_f(xK) .- yg) .* κd_f(xK, xg) .- κfs_f(xK, xg)
 
     ## Step 1. Solve the xK and κp together
@@ -213,10 +214,10 @@ function inside_iteration_li2020(w::S, p_interp, p::S, ∂p∂w::S, xK0::S, xg0:
         solved_xKs = BitArray(undef, length(xKs))
 
         for (j, κp) in enumerate(κp_grid)
-            xK_tighter_upper = (1. - θ[:θ] * (1. - θ[:e]) - (1. - θ[:θ]) * (θ[:α] / (1. - θ[:α])) * (θ[:β] * (xg - 1.) - xg)) /
+            xK_tighter_upper = (1. - θ[:θ] * (1. - θ[:ϵ]) - (1. - θ[:θ]) * (θ[:α] / (1. - θ[:α])) * (θ[:β] * (xg - 1.) - xg)) /
                 ((1. - θ[:θ]) * (κp + θ[:α] / (1. - θ[:α]) * θ[:β]))
             out = nlsolve((F, xK) -> xK_residual(F, κp, xK, xK_tighter_upper),
-                          [xK_guess_prop * min(xK0, (1 - θ[:e]) / κp, xK_tighter_upper)], autodiff = :forward)
+                          [xK_guess_prop * min(xK0, (1 - θ[:ϵ]) / κp, xK_tighter_upper)], autodiff = :forward)
             xKs[j] = out.zero
             residual = out.residual_norm # w/1 variable, this is precisely the residual
 
@@ -245,7 +246,7 @@ function inside_iteration_li2020(w::S, p_interp, p::S, ∂p∂w::S, xK0::S, xg0:
             κp = out.zero
             succeed_κp = out.f_converged
 
-            xK_tighter_upper = (1. - θ[:θ] * (1. - θ[:e]) - (1. - θ[:θ]) *
+            xK_tighter_upper = (1. - θ[:θ] * (1. - θ[:ϵ]) - (1. - θ[:θ]) *
                                 θ[:α] / (1. - θ[:α]) * (θ[:β] * (xg - 1.) - xg) ) /
                                 ((1. - θ[:θ]) * (κp + θ[:α] / (1. - θ[:α]) * θ[:β]))
             out = nlsolve((F, xK) -> xK_residual(F, κp, xK, xK_tighter_upper), [roots_xK(κp)], autodiff = :forward)
@@ -266,7 +267,7 @@ function inside_iteration_li2020(w::S, p_interp, p::S, ∂p∂w::S, xK0::S, xg0:
 
             # Solve for xg now
             xg_upper = Q / (w * (p + Q̂))
-            xg_lower = max(θ[:e], 1. / (1. - θ[:β]) * (θ[:β] * (xK - 1.) - (1. - θ[:α]) / θ[:α] * (1. - xK * κp)))
+            xg_lower = max(θ[:ϵ], 1. / (1. - θ[:β]) * (θ[:β] * (xK - 1.) - (1. - θ[:α]) / θ[:α] * (1. - xK * κp)))
             function xg_residual(F, xg)
                 F .= 1e3 .* (I_f(xK, xg) .* θ[:λ] .* (1. .- θ[:θ]) .* (θ[:α] ./ (1. .- θ[:α]) .* (1. .- θ[:β])) ./
                              (1. .- xK .* κp .- θ[:α] ./ (1. .- θ[:α]) * δₓ_f(xK, xg)) .- θ[:λ] .* κd_f(xK, xg) ./
@@ -291,8 +292,8 @@ function inside_iteration_li2020(w::S, p_interp, p::S, ∂p∂w::S, xK0::S, xg0:
             end
 
             # Boundary case
-            if (abs(xg - θ[:e]) < residual_tol[1]) && (xg_residual(F, xg) < 0)
-                xg = θ[:e]
+            if (abs(xg - θ[:ϵ]) < residual_tol[1]) && (xg_residual(F, xg) < 0)
+                xg = θ[:ϵ]
                 succeed_xg = xg_residual < xg_residual([0.], xg)
             end
 
@@ -333,24 +334,28 @@ end
 
 """
 ```
-function prepare_Q̂!(funcvar::OrderedDict{Symbol, Vector{S}}, derivs::OrderedDict{Symbol, Vector{S}}, endo::OrderedDict{Symbol, Vector{S}},
-                    θ::NamedTuple, f_μK::Function, Φ::Function, yg_tol::S, firesale_bound::S, firesale_interpolant::Function, Q::S) where {S <: Real}
+function prepare_Q̂!(stategrid::StateGrid, funcvar::OrderedDict{Symbol, Vector{S}}, derivs::OrderedDict{Symbol, Vector{S}},
+    endo::OrderedDict{Symbol, Vector{S}}, θ::NamedTuple, f_μK::Function, Φ::Function, yg_tol::S, firesale_bound::S,
+    firesale_interpolant::Function, Q::S) where {S <: Real}
 ```
 
 calculates the quantities needed for Q̂. Most of this function is a copy of augment_variables!, but
 some quantities don't need to be calculated and have been omitted for speed purposes.
 """
-function prepare_Q̂!(funcvar::OrderedDict{Symbol, Vector{S}}, derivs::OrderedDict{Symbol, Vector{S}}, endo::OrderedDict{Symbol, Vector{S}},
-                    θ::NamedTuple, f_μK::Function, Φ::Function, yg_tol::S, firesale_bound::S, firesale_interpolant::Function, Q::S) where {S <: Real}
-    @unpack ψ, xK, yK, yg, σp, σ, σh, σw, μR_rd, rd_rg, μb_μh, μw, μp, μK, μR, rd, rg, μb, μh, κp, invst, κb, κd, κh, κfs, firesale_jump, κw, δ_x, indic, rf, rh = endo
-    p, xg, Q̂ = funcvar
+function prepare_Q̂!(stategrid::StateGrid, funcvar::OrderedDict{Symbol, Vector{S}}, derivs::OrderedDict{Symbol, Vector{S}},
+                    endo::OrderedDict{Symbol, Vector{S}}, θ::NamedTuple, f_μK::Function, Φ::Function, yg_tol::S, firesale_bound::S,
+                    firesale_interpolant::Interpolations.InterpolationType, Q::S) where {S <: Real}
+    @unpack ψ, xK, yK, yg, σp, σ, σh, σw, μR_rd, rd_rg, μb_μh, μw, μp, μK, μR, rd, rg, μb, μh, κp, invst, κb, κd, κh, κfs, firesale_jump, κw, δ_x, indic, rf, rh, rd_rf, μp, μK, μR = endo
+    @unpack p, xg, Q̂ = funcvar
     ∂p∂w = derivs[:∂p_∂w]
+    ∂²p∂w² = derivs[:∂²p_∂w²]
     w    = stategrid[:w]
 
     # Calculate various quantities
     ∂p∂w   .= differentiate(w, p)    # as Li (2020) does it
+    ∂²p∂w² .= differentiate(w, ∂p∂w)
     invst  .= map(x -> Φ(x, θ[:χ], θ[:δ]), p)
-    ψ      .= (invst .+ θ[:ρ] + (p + Q̂) .- θ[:AL]) ./ (θ[:AH] - θ[:AL])
+    ψ      .= (invst .+ θ[:ρ] .* (p + Q̂) .- θ[:AL]) ./ (θ[:AH] - θ[:AL])
     ψ[ψ .> 1.] .= 1.
 
     # Portfolio choices
@@ -361,7 +366,7 @@ function prepare_Q̂!(funcvar::OrderedDict{Symbol, Vector{S}}, derivs::OrderedDi
     yK[end] = yK[end - 1]
     yg   .= (Q ./ (p + Q̂) - w .* xg) ./ (1. .- w)
     yg[end] = yg[end - 1]
-    yg[yg .< yg_tol] = yg_tol # avoid yg < 0
+    yg[yg .< yg_tol] .= yg_tol # avoid yg < 0
     δ_x   .= max.(θ[:β] .* (xK + xg .- 1.) - xg, 0.)
     indic .= δ_x .> 0.
 
@@ -370,33 +375,38 @@ function prepare_Q̂!(funcvar::OrderedDict{Symbol, Vector{S}}, derivs::OrderedDi
     σp[end] = 0. # no volatility at the end
     σ  .= xK .* (θ[:σK] .+ σp)
     σh .= yK .* (θ[:σK] .+ σp)
+    σw .= (1. .- w) .* (σ - σh)
 
     # Deal with post jump issues
     firesale_jump .= xK .* κp + (θ[:α] / (1 - θ[:α])) .* δ_x
     firesale_ind  = firesale_jump .< firesale_bound
-    firesale_spl  = extrapolate(interpolate(w[firesale_ind], firesale_jump[ind], firesale_interpolant), Line()) # linear extrapolation
+    firesale_spl  = extrapolate(interpolate((w[firesale_ind], ), firesale_jump[firesale_ind], firesale_interpolant), Line()) # linear extrapolation
     firesale_jump .= firesale_spl(w)
 
     # Jumps
-    κd  .= θ[:θ] .* (xK .+ θ[:e] .- 1.) ./ (xK .+ xg .- 1.) .* (xK .+ θ[:e] .> 1.)
-    κb  .= θ[:θ] .* min.(1. - θ[:e], xK) + (1. .- θ[:θ]) .* firesale_jump
+    κd  .= θ[:θ] .* (xK .+ θ[:ϵ] .- 1.) ./ (xK .+ xg .- 1.) .* (xK .+ θ[:ϵ] .> 1.)
+    κb  .= θ[:θ] .* min.(1. - θ[:ϵ], xK) + (1. .- θ[:θ]) .* firesale_jump
     κfs .= (θ[:α] / (1 - θ[:α])) .* δ_x .* w ./ (1. .- w)
     κfs[end] = 0.
     κh  .= yK .* κp + (1. .- yK .- yg) .* κd - κfs
     κw  .= 1. .- (1. .- κb) ./ (1. .- κh .- w .* (κb - κh))
 
     # Main drifts and interest rates
-    μR_rd   .= (θ[:σK] + σp) .^ 2 .* xK - θ[:AH] ./ p + (θ[:λ] * (1 - θ[:θ])) .*
+    μR_rd   .= (θ[:σK] .+ σp) .^ 2 .* xK - θ[:AH] ./ p + (θ[:λ] * (1. - θ[:θ])) .*
         (κp + indic .* (θ[:α] / (1 - θ[:α]) * θ[:β])) ./ (1. .- firesale_jump) +
-         (xK .+ θ[:e] .< 1.) .* (θ[:λ] * θ[:θ]) ./ (1. .- xK)
-    rd_rg   .= (θ[:λ] * (1 - θ[:θ]) * (θ[:α] / (1 - θ[:α]) * θ[:β])) .* indic ./ (1. .- firesale_jump)
-    rd_rg_H .= θ[:λ] .* κd ./ (1. .- yK .* κp - (1. .- yK .- yg) .* κd + κfs)
+         (xK .+ θ[:ϵ] .< 1.) .* (θ[:λ] * θ[:θ]) ./ (1. .- xK)
+    rd_rg   .= (θ[:λ] * (1 - θ[:θ]) * θ[:α] / (1 - θ[:α]) * (1 - θ[:β])) .* indic ./ (1. .- firesale_jump)
+    rd_rg_H  = θ[:λ] .* κd ./ (1. .- yK .* κp .- (1. .- yK .- yg) .* κd .+ κfs)
     index_xK = xK .<= 1. # In this scenario, the rd-rg difference must be solved from hh's FOC
     rd_rg[index_xK] = rd_rg_H[index_xK]
     μb_μh   .= (xK - yK) .* μR_rd + (xK .* θ[:AH] - yK .* θ[:AL]) ./ p - (xg - yg) .* rd_rg
     μw      .= (1. .- w) .* (μb_μh + σh .^ 2 - σ .* σh - w .* (σ - σh) .^ 2 -
                        θ[:η] ./ (1. .- w))
     μw[end]  = μw[end - 1] # drift should be similar at the end
+    μp      .= ∂p∂w .* w .* μw + (1. / 2.) .* ∂²p∂w² .* (w .* (1. .- w) .* (σ - σh)) .^ 2
+    μp[end]  = μp[end - 1] # drift should be similar at the end
+    μK      .= map(x -> f_μK(x, θ[:χ], θ[:δ]), p)
+    μR      .= μp .- θ[:δ] + μK + θ[:σK] .* σp - invst ./ p
 
     # Other interest rates
     rd    .= μR - μR_rd

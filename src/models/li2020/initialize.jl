@@ -14,7 +14,7 @@ function initialize!(m::Li2020)
     gen_grid(l, u, n) = exp.(range(log(l), stop = log(u), length = n))
     stategrid_init[:w] = vcat(0., gen_grid(get_setting(m, :stategrid_dimensions)[:w][1],
                                            get_setting(m, :stategrid_splice), Int(round(N / 2))),
-                              gen_grid(get_setting(m, :stategrid_splice) + .1, get_setting(m, :stategrid_dimensions)[:w][2],
+                              gen_grid(get_setting(m, :stategrid_splice) + .01, get_setting(m, :stategrid_dimensions)[:w][2],
                               Int(N - round(N / 2) - 1)))
     stategrid = StateGrid(stategrid_init)
 

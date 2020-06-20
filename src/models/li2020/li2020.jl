@@ -113,11 +113,13 @@ function init_model_indices!(m::Li2020)
     functional_variables = collect([:p, :Q̂, :xg])
 
     # Derivatives of variables
-    init_derivatives!(m, stategrid)
+    init_derivatives!(m, Dict{Symbol, Vector{Int}}(:p => standard_derivs(1)), stategrid)
     derivatives = keys(get_derivatives(m))
 
     # Endogenous variables
-    endogenous_variables = collect([:ψ, :xK, :yK, :yg, :σp, :σ, :σh])
+    endogenous_variables = collect([:ψ, :xK, :yK, :yg, :σp, :σ, :σh, :σw, :μR_rd, :rd_rg, :μb_μh, :μw, :μp, :μK, :μR, :rd, :rg, :rd_rf,
+                                    :μb, :μh, :invst, :lvg, :κp, :κb, :κd, :κh, :κfs, :firesale_jump, :κw, :liq_prem, :bank_liq_frac,
+                                    :δ_x, :indic, :rf, :rh, :K_growth, :κK])
 
     # Observables
     observables = keys(m.observable_mappings)
@@ -182,22 +184,6 @@ function Li2020(subspec::String = "ss0";
     init_subspec!(m)
 
     return m
-end
-
-"""
-```
-init_derivatives!(m::Li2020)
-```
-
-initializes the desired derivatives for the model
-"""
-function init_derivatives!(m::Li2020, statevars::Vector{Symbol})
-
-    # Determine which variables are to be differentiated
-    desired_derivs = Dict{Symbol, Vector{Int}}(:p => standard_derivs(1))
-
-    # Give to parser function the instructions
-    init_derivatives!(m, desired_derivs, statevars)
 end
 
 """

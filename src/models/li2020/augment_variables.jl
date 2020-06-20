@@ -18,7 +18,7 @@ function augment_variables(m::Li2020, stategrid::StateGrid, funcvar::OrderedDict
                            endo::OrderedDict{Symbol, AbstractVector{S}}) where {S <: Real}
 
     # Unpack equilibrium endogenous variables and stategrid
-    @unpack ψ, xK, yK, yg, σp, σ, σh, σw, μR_rd, rd_rg, μb_μh, μw, μp, μK, μR, rd, rg, μb, μh, invst, lvg, κp, κb, κd, κh, κfs, firesale_jump, κw, liq_prem, bank_liq_frac, δ_x, indic, rf, rh, K_growth, κK = endo
+    @unpack ψ, xK, yK, yg, σp, σ, σh, σw, μR_rd, rd_rg, μb_μh, μw, μp, μK, μR, rd, rd_rf, rg, μb, μh, invst, lvg, κp, κb, κd, κh, κfs, firesale_jump, κw, liq_prem, bank_liq_frac, δ_x, indic, rf, rh, K_growth, κK = endo
     @unpack p, xg, Q̂     = funcvar
     @unpack ∂p∂w, ∂²p∂w² = derivs
     w    = stategrid[:w]
@@ -33,7 +33,7 @@ function augment_variables(m::Li2020, stategrid::StateGrid, funcvar::OrderedDict
     ∂p∂w   .= differentiate(w, p)    # as Li (2020) does it
     ∂²p∂w² .= differentiate(w, ∂p∂w) # as Li (2020) does it
     invst  .= map(x -> Φ(x, θ[:χ], θ[:δ]), p)
-    ψ      .= (invst .+ θ[:ρ] + (p + Q̂) .- θ[:AL]) ./ (θ[:AH] - θ[:AL])
+    ψ      .= (invst .+ θ[:ρ] .* (p + Q̂) .- θ[:AL]) ./ (θ[:AH] - θ[:AL])
     ψ[ψ .> 1.] .= 1.
 
     # Portfolio choices
@@ -55,6 +55,7 @@ function augment_variables(m::Li2020, stategrid::StateGrid, funcvar::OrderedDict
     σp[end] = 0. # no volatility at the end
     σ  .= xK .* (θ[:σK] .+ σp)
     σh .= yK .* (θ[:σK] .+ σp)
+    σw .= (1. .- w) .* (σ - σh)
 
     # Deal with post jump issues
     firesale_jump .= xK .* κp + (θ[:α] / (1 - θ[:α])) .* δ_x
@@ -64,8 +65,8 @@ function augment_variables(m::Li2020, stategrid::StateGrid, funcvar::OrderedDict
     firesale_jump .= firesale_spl(w)
 
     # Jumps
-    κd  .= θ[:θ] .* (xK .+ θ[:e] .- 1.) ./ (xK + xg .- 1.) .* (xK .+ θ[:e] .> 1.)
-    κb  .= θ[:θ] .* min.(1. - θ[:e], xK) + (1. .- θ[:θ]) .* firesale_jump
+    κd  .= θ[:θ] .* (xK .+ θ[:ϵ] .- 1.) ./ (xK + xg .- 1.) .* (xK .+ θ[:ϵ] .> 1.)
+    κb  .= θ[:θ] .* min.(1. - θ[:ϵ], xK) + (1. .- θ[:θ]) .* firesale_jump
     κfs .= (θ[:α] / (1 - θ[:α])) .* δ_x .* w ./ (1. .- w)
     κfs[end] = 0.
     κh  .= yK .* κp + (1. .- yK .- yg) .* κd - κfs
@@ -83,8 +84,8 @@ function augment_variables(m::Li2020, stategrid::StateGrid, funcvar::OrderedDict
     # Main drifts and interest rates
     μR_rd   .= (θ[:σK] + σp) .^ 2 .* xK - θ[:AH] ./ p + (θ[:λ] * (1 - θ[:θ])) .*
         (κp + indic .* (θ[:α] / (1 - θ[:α]) * θ[:β])) ./ (1. .- firesale_jump) +
-         (xK .+ θ[:e] .< 1.) .* (θ[:λ] * θ[:θ]) ./ (1. .- xK)
-    rd_rg   .= (θ[:λ] * (1 - θ[:θ]) * (θ[:α] / (1 - θ[:α]) * θ[:β])) .* indic ./ (1. .- firesale_jump)
+         (xK .+ θ[:ϵ] .< 1.) .* (θ[:λ] * θ[:θ]) ./ (1. .- xK)
+    rd_rg   .= (θ[:λ] * (1 - θ[:θ]) * θ[:α] / (1 - θ[:α]) * (1 - θ[:β])) .* indic ./ (1. .- firesale_jump)
     rd_rg_H .= θ[:λ] .* κd ./ (1. .- yK .* κp - (1. .- yK .- yg) .* κd + κfs)
     index_xK = xK .<= 1. # In this scenario, the rd-rg difference must be solved from hh's FOC
     rd_rg[index_xK] = rd_rg_H[index_xK]
@@ -92,7 +93,7 @@ function augment_variables(m::Li2020, stategrid::StateGrid, funcvar::OrderedDict
     μw      .= (1. .- w) .* (μb_μh + σh .^ 2 - σ .* σh - w .* (σ - σh) .^ 2 -
                        θ[:η] ./ (1. .- w))
     μw[end]  = μw[end - 1] # drift should be similar at the end
-    μp      .= ∂p∂w .* w .* μw + (1. / 2.) .* ∂²∂w² .* (w .* (1. .- w) .* (σ - σh)) .^ 2
+    μp      .= ∂p∂w .* w .* μw + (1. / 2.) .* ∂²p∂w² .* (w .* (1. .- w) .* (σ - σh)) .^ 2
     μp[end]  = μp[end - 1] # drift should be similar at the end
     μK      .= map(x -> f_μK(x, θ[:χ], θ[:δ]), p)
     μR      .= μp .- θ[:δ] + μK + θ[:σK] .* σp - invst ./ p
