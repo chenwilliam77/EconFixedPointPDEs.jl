@@ -28,6 +28,8 @@ function eqcond(m::Li2020)
     Q̂_tol = get_setting(m, :Q̂_tol)
     Q̂_max_it = get_setting(m, :Q̂_max_it)
     dt = get_setting(m, :dt)
+    inside_iter_tol = get_setting(m, :inside_iteration_nlsolve_tol)
+    xg_tol = get_setting(m, :xg_tol)
 
     # Construct the initial guess for p by interpolating the solution from
     # the no jump equilibrium via SLM
@@ -58,7 +60,7 @@ function eqcond(m::Li2020)
         κp_new = similar(κp)
 
         ## Step 1: Update for a new round
-        p_fitted = interpolate((stategrid[:w], ), p, p_fitted_interpolant)
+        p_fitted = extrapolate(interpolate((stategrid[:w], ), p, p_fitted_interpolant), Line())
         ψ  .= map((x, y) -> (Φ(x, θ[:χ], θ[:δ]) + θ[:ρ] * (x + y) - θ[:AL]) / (θ[:AH] - θ[:AL]), p, Q̂)
         xK .= ψ ./ stategrid[:w] .* p ./ (p + Q̂)
 
@@ -68,7 +70,8 @@ function eqcond(m::Li2020)
         solved    = BitArray(undef, length(p))
 
         ## Step 2: Solve p and xg for each grid point
-        for (i, wᵢ) in enumerate(stategrid[:w])
+        for i in 2:(length(stategrid) - 1)
+            wᵢ    = stategrid[:w][i]
             pᵢ    = p[i]
             xKᵢ   = xK[i]
             xgᵢ   = xg[i]
@@ -76,15 +79,16 @@ function eqcond(m::Li2020)
             Q̂ᵢ    = Q̂[i]
 
             κp_new[i], xKᵢ, xg_new[i], succeed_κp, succeed_xK, succeed_xg =
-                inside_iteration(wᵢ, p_fitted, pᵢ, ∂p∂wᵢ, xKᵢ,
-                                 xgᵢ, Q, Q̂ᵢ, max_jump, θ;
-                                 κp_grid = κp_grid, xK_interpolant = xK_interpolant,
-                                 damping_function = damping_function,
-                                 verbose = verbose)
+                inside_iteration_li2020(wᵢ, p_fitted, pᵢ, ∂p∂wᵢ, xKᵢ,
+                                        xgᵢ, Q, Q̂ᵢ, max_jump, θ;
+                                        κp_grid = κp_grid, xK_interpolant = xK_interpolant,
+                                        damping_function = damping_function,
+                                        nlsolve_tol = inside_iter_tol, xg_tol = xg_tol,
+                                        verbose = verbose)
 
             ψᵢ = xKᵢ / wᵢ / (pᵢ / (pᵢ + Q̂ᵢ))
             p_new[i] = nlsolve(x -> Φ(x, θ[:χ], θ[:δ]) .+ θ[:ρ] .* (x .+ Q̂ᵢ) .- (ψᵢ * θ[:AH] + (1. - ψᵢ) * θ[:AL]),
-                           [(p₀ + p₁) / 2.], autodiff = :forward)
+                           [(p₀ + p₁) / 2.])#, autodiff = :forward)
             solved_κp[i] = succeed_κp
             solved_xK[i] = succeed_xK
             solved_xg[i] = succeed_xg
@@ -151,29 +155,34 @@ inside_iteration_li2020(m, stategrid, funcvar, xK, xg, i; verbose = :low)
 calculates a new xK, xg, and κp within a functional iteration loop
 when solving equilibrium in Li (2020) with jumps.
 """
-function inside_iteration_li2020(w::S, p_interp, p::S, ∂p∂w::S, xK0::S, xg0::S, Q::S, Q̂::S, max_jump::S,
-                          θ::NamedTuple; κp_grid::AbstractVector{S} = Vector{S}(undef, 0),
-                          xK_max::S = 1e10, κp_residual_error::S = 1e30, xK_residual_error::S = 1e20,
-                          xg_residual_error::S = 1e20,
-                          xK_guess_prop::S = 0.9, xg_guess_prop, κp_guess::S = 1e-3,
-                          residual_tol::Tuple{S, S, S} = (1e-6, 1e-5, 1e-3),
-                          xK_interpolant::Function = Gridded(Linear()),
-                          damping_function::Function = x -> 3e-8 ./ x,
-                          verbose::Symbol = :low) where {S <: Real}
+function inside_iteration_li2020(w::S, p_interp::Interpolations.AbstractInterpolation, p::S, ∂p∂w::S, xK0::S, xg0::S, Q::S, Q̂::S, max_jump::S,
+                                 θ::NamedTuple; κp_grid::AbstractVector{S} = Vector{S}(undef, 0),
+                                 xK_max::S = 1e10, κp_residual_error::S = 1e30, xK_residual_error::S = 1e20,
+                                 xg_residual_error::S = 1e20,
+                                 xK_guess_prop::S = 0.9, xg_guess_prop::S = 0.999, κp_guess::S = 1e-3,
+                                 residual_tol::Tuple{S, S, S, S} = (1e-6, 5e-5, 1e-3, 5e-5),
+                                 xK_interpolant::Interpolations.InterpolationType = Gridded(Linear()),
+                                 damping_function::Function = x -> 3e-8 ./ x,
+                                 nlsolve_tol::S = 1e-8, xg_tol::S = 1e-8, verbose::Symbol = :low) where {S <: Real}
 
     ## Set up
 
+    # Set flags
+    succeed_κp = false
+    succeed_xK = false
+    succeed_xg = false
+
     # Create useful functions that will be re-used
-    yK_f  = xK -> (p ./ (p .+ Q̂) .- w .* xK) ./ (1. .- w)
-    yg_f  = xg -> (Q ./ (p .+ Q̂) .- w .* xg) ./ (1. .- w)
-    yg    = yg_f(xg) # initializing this value for use in some of the following functions
-    σp_f  = xK -> ∂p∂w .* w .* (1. .- w) .* (xK .- yK_f(xK)) ./ (1. .- ∂p∂w .* w .* (1. .- w) .* (xK .- yK_f(xK))) .* θ[:σK]
-    δₓ_f  = (xK, xg) -> max.(θ[:β] .* (xK .+ xg .- 1.) .- xg, 0.)
-    I_f   = (xK, xg) -> θ[:β] .* (xK .+ xg .- 1.) .- xg .> 0.
-    κd_f  = (xK, xg) -> θ[:θ] .* max.(xK .+ 1e-1, 0.) ./ (xK .+ xg .- 1.)
-    κfs_f = (xK, xg) = θ[:α] ./ (1. .- θ[:α]) .* δₓ_f(xK, xg) .* w  ./ (1. .- w)
-    κb_f  = (κp, xK) -> θ[:θ] .* (1. .- θ[:ϵ]) .+ (1. .- θ[:θ]) .* (xK .* κp .+ θ[:α] ./ (1. .- θ[:α]) .* δₓ_f(xK, xg))
-    κh_f  = (κp, xK) -> yK_f(xK) .* κp .+ (1. .- yK_f(xK) .- yg) .* κd_f(xK, xg) .- κfs_f(xK, xg)
+    yK_f(xK) = (p ./ (p .+ Q̂) .- w .* xK) ./ (1. .- w)
+    yg_f(xg) = (Q ./ (p .+ Q̂) .- w .* xg) ./ (1. .- w)
+    yg    = yg_f(xg0) # initializing this value for use in some of the following functions
+    σp_f(xK) = ∂p∂w .* w .* (1. .- w) .* (xK .- yK_f(xK)) ./ (1. .- ∂p∂w .* w .* (1. .- w) .* (xK .- yK_f(xK))) .* θ[:σK]
+    δₓ_f(xK, xg) = max.(θ[:β] .* (xK .+  xg .- 1.) .- xg, 0.)
+    I_f(xK, xg) = map(x -> x ? 1. : 0., (θ[:β] .* (xK .+ xg .- 1.) .- xg) .> 0.)
+    κd_f(xK, xg) = θ[:θ] .* max.(xK .+ (θ[:ϵ] - 1.), 0.) ./ (xK .+ xg .- 1.)
+    κfs_f(xK, xg) = θ[:α] ./ (1. .- θ[:α]) .* δₓ_f(xK, xg) .* w  ./ (1. .- w)
+    κb_f(κp, xK) = θ[:θ] .* (1. .- θ[:ϵ]) .+ (1. .- θ[:θ]) .* (xK .* κp .+ θ[:α] ./ (1. .- θ[:α]) .* δₓ_f(xK, xg0))
+    κh_f(κp, xK) = yK_f(xK) .* κp .+ (1. .- yK_f(xK) .- yg) .* κd_f(xK, xg0) .- κfs_f(xK, xg0)
 
     ## Step 1. Solve the xK and κp together
 
@@ -185,22 +194,24 @@ function inside_iteration_li2020(w::S, p_interp, p::S, ∂p∂w::S, xK0::S, xg0:
 
     # Define the residual functions for the system of κp and xK
     function κp_residual(F, κp, xK)
-        F.= p .- interp(w .* (1. .- κb_f(κp, xK)) ./ (1. .- κh_f(κp, xK) .- w .* (κb_f(κp, xK) .- κh_f(κp, xK))), p_interp) .-
-            κp .+ (any(κb_f(κp, xK) .> 1.) || any(κh_f(κp, xK) .> 1.) || any(κp .> κp_upper) || any(κp .< κp_lower)) ? κp_residual_error : 0.
+        F .= p .- p_interp(w .* (1. .- κb_f(κp, xK)) ./ (1. .- κh_f(κp, xK) .- w .* (κb_f(κp, xK) .- κh_f(κp, xK)))) .-
+            κp .+ ((any(κb_f(κp, xK) .> 1.) || any(κh_f(κp, xK) .> 1.) || any(κp .> κp_upper) || any(κp .< κp_lower)) ? κp_residual_error : 0.)
     end
+    # xK residual isn't matching up, it looks like somehow one of the 1e20 conditions is getting triggered in Matlab
     function xK_residual(F, κp, xK, xK_res_upper)
-        F .= 1e3 .* ((θ[:σK] .+ σp_f(xK)).^2 .* (xK .- yK_f(xK)) .+
-                     θ[:λ] .* (1. .- θ[:θ]) .* ((κp .+ I_f(xK, xg) .* θ[:α] ./ (1. .- θ[:α]) .* θ[:β]) ./
-                                                (1. .- xK .* κp .- θ[:α] ./ (1. .- θ[:α]) .* δₓ_f(xK, xg))) .-
-                     θ[:λ] .* (κp .- κd_f(xK, x)) ./ (1. .- yK_f(xK) .* κp .- (1. .- yK_f(xK) .- yg) .* κd_f(xK, xg) .+ κfs_f(xK, xg)) .-
-                     (θ[:AH] .- θ[:AL]) ./ p) .+
-                     (any(xK .> xK_res_upper) || any(xK .< xK_lower) || any(θ[:α] ./ (1. .- θ[:α]) .* δₓ_f(xK, xg) .+ xK .* κp .> 1.)) ?
-                     xK_residual_error : 0.
+        F .= 1e3 .* ((θ[:σK] .+ σp_f(xK)) .^ 2 .* (xK .- yK_f(xK)) .+
+                     (θ[:λ] * (1. - θ[:θ])) .* ((κp .+ I_f(xK, xg0) .* (θ[:α] / (1. - θ[:α]) * θ[:β])) ./
+                                                (1. .- xK .* κp .- (θ[:α] / (1. - θ[:α])) .* δₓ_f(xK, xg0))) .-
+                     θ[:λ] .* (κp .- κd_f(xK, xg0)) ./ (1. .- yK_f(xK) .* κp .- (1. .- yK_f(xK) .- yg) .* κd_f(xK, xg0) .+ κfs_f(xK, xg0)) .-
+                     (θ[:AH] - θ[:AL]) ./ p) .+
+                     ((any(xK .> xK_res_upper) || any(xK .< xK_lower) || any((θ[:α] / (1. - θ[:α])) .* δₓ_f(xK, xg0) .+ xK .* κp .> 1.)) ?
+                     xK_residual_error : 0.)
     end
+
 
     # For testing purposes
     if verbose == :high
-        upper = (1. - θ[:α] / (1 - θ[:α]) * (θ[:β] * (xg - 1) - xg)) / (0. + θ[:α] / (1 - θ[:α] * θ[:β]))
+        upper = (1. - θ[:α] / (1 - θ[:α]) * (θ[:β] * (xg0 - 1) - xg0)) / (0. + θ[:α] / (1 - θ[:α] * θ[:β]))
         xK_test_vec = range(xK_lower, stop = upper, length = 100)
         κp_test_vec = range(κp_lower, stop = .012, length = 200)
         # Plot these residuals xK_residual([0.], 0, xK_test_vec), κp_residual([0.], κp_test_vec, xK)
@@ -214,24 +225,28 @@ function inside_iteration_li2020(w::S, p_interp, p::S, ∂p∂w::S, xK0::S, xg0:
         solved_xKs = BitArray(undef, length(xKs))
 
         for (j, κp) in enumerate(κp_grid)
-            xK_tighter_upper = (1. - θ[:θ] * (1. - θ[:ϵ]) - (1. - θ[:θ]) * (θ[:α] / (1. - θ[:α])) * (θ[:β] * (xg - 1.) - xg)) /
+            xK_tighter_upper = (1. - θ[:θ] * (1. - θ[:ϵ]) - (1. - θ[:θ]) * (θ[:α] / (1. - θ[:α])) * (θ[:β] * (xg0 - 1.) - xg0)) /
                 ((1. - θ[:θ]) * (κp + θ[:α] / (1. - θ[:α]) * θ[:β]))
-            out = nlsolve((F, xK) -> xK_residual(F, κp, xK, xK_tighter_upper),
-                          [xK_guess_prop * min(xK0, (1 - θ[:ϵ]) / κp, xK_tighter_upper)], autodiff = :forward)
-            xKs[j] = out.zero
+            out = nlsolve((F, xK) -> xK_residual(F, κp, xK, min(xK_tighter_upper, xK_upper)),
+                          [max(1., xK_guess_prop * min(xK0, (1 - θ[:ϵ]) / κp, xK_tighter_upper))]; ftol = nlsolve_tol)
+
+            xKs[j] = out.zero[1]
             residual = out.residual_norm # w/1 variable, this is precisely the residual
 
             if abs(residual) > residual_tol[1] # Is the residual too big?
 
                 # If the solution is on the order of yK = 0, then it's fine
-                if abs(xKs[j] - p / (p + Q̂) / w) < residual_tol[2] && xK_residual(κp, xKs[j], xK_tighter_upper) < 0.
-
+                @show xKs[j] #nlsolve is not finding the close answer, so we need to handle the case such that xKs = p / (p + qhat / w) and we don't use xK = 1
+                @show abs(xKs[j] - p / (p + Q̂) / w)
+                @show xK_residual([0.], κp, xKs[j], min(xK_upper, xK_tighter_upper))[1]
+                if abs(xKs[j] - p / (p + Q̂) / w) < residual_tol[2] &&
+                    xK_residual([0.], κp, xKs[j], min(xK_upper, xK_tighter_upper))[1] < 0.
                     residual = 0.
                 end
 
                 # Full liquidity insurance scenario
-                if abs(xKs[j] - (1. - θ[:β]) / θ[:β] + xg - 1.) < residual_tol[1]
-                    xKs[j] = (1. - θ[:β]) / θ[:β] * xg + 1.
+                if abs(xKs[j] - (1. - θ[:β]) / θ[:β] + xg0 - 1.) < residual_tol[1]
+                    xKs[j] = (1. - θ[:β]) / θ[:β] * xg0 + 1.
                     residual = 0.
                 end
             end
@@ -239,29 +254,29 @@ function inside_iteration_li2020(w::S, p_interp, p::S, ∂p∂w::S, xK0::S, xg0:
         end
 
         # Now solve for κp
-        roots_xK = interpolate((κps[solved_xKs], ), xKs[solved_xKs], xK_interpolant)
-        if all(abs.(xKs + xg - 1.) .>= residual_tol[1]) # Banks are still leveraged
-
-            out = nlsolve((F, κp) -> κp_residual(F, κp, roots_xK(κp)), [κp_residal_guess], autodiff = :forward)
-            κp = out.zero
+        roots_xK = extrapolate(interpolate((κp_grid[solved_xKs], ), xKs[solved_xKs], xK_interpolant), Line())
+        @show abs.(xKs .+ xg0 .- 1.)
+        if all(abs.(xKs .+ xg0 .- 1.) .>= residual_tol[1]) # Banks are still leveraged
+            out = nlsolve((F, κp) -> κp_residual(F, κp, roots_xK(κp)), [κp_guess]; ftol = nlsolve_tol)
+            κp = out.zero[1]
             succeed_κp = out.f_converged
 
             xK_tighter_upper = (1. - θ[:θ] * (1. - θ[:ϵ]) - (1. - θ[:θ]) *
-                                θ[:α] / (1. - θ[:α]) * (θ[:β] * (xg - 1.) - xg) ) /
+                                θ[:α] / (1. - θ[:α]) * (θ[:β] * (xg0 - 1.) - xg0) ) /
                                 ((1. - θ[:θ]) * (κp + θ[:α] / (1. - θ[:α]) * θ[:β]))
-            out = nlsolve((F, xK) -> xK_residual(F, κp, xK, xK_tighter_upper), [roots_xK(κp)], autodiff = :forward)
-            xK  = out.zero
+            out = nlsolve((F, xK) -> xK_residual(F, κp, xK, min(xK_tighter_upper, xK_upper)), [roots_xK(κp)]; ftol = nlsolve_tol)
+            xK  = out.zero[1]
             succeed_xK = out.f_converged
 
             # At the corner xK = 1 / w?
-            if abs(xK - p / (p + Q̂) / w) < residual_tol[1]
+            if abs(xK - p / (p + Q̂) / w) < residual_tol[2]
                 xK = p / (p + Q̂) / w
-                succeed_xK = xK_residual(κp, xK) < 0
+                succeed_xK = xK_residual([0.], κp, xK, min(xK_tighter_upper, xK_upper))[1] < 0
             end
 
             # Full liquidity insurance scenario
-            if abs(xK - (1. - θ[:β]) / θ[:β] * xg - 1.) < residual_tol[1]
-                xK = (1 - θ[:β]) / θ[:β] * xg + 1
+            if abs(xK - (1. - θ[:β]) / θ[:β] * xg0 - 1.) < residual_tol[1]
+                xK = (1 - θ[:β]) / θ[:β] * xg0 + 1
                 succeed_xK = true
             end
 
@@ -269,11 +284,11 @@ function inside_iteration_li2020(w::S, p_interp, p::S, ∂p∂w::S, xK0::S, xg0:
             xg_upper = Q / (w * (p + Q̂))
             xg_lower = max(θ[:ϵ], 1. / (1. - θ[:β]) * (θ[:β] * (xK - 1.) - (1. - θ[:α]) / θ[:α] * (1. - xK * κp)))
             function xg_residual(F, xg)
-                F .= 1e3 .* (I_f(xK, xg) .* θ[:λ] .* (1. .- θ[:θ]) .* (θ[:α] ./ (1. .- θ[:α]) .* (1. .- θ[:β])) ./
-                             (1. .- xK .* κp .- θ[:α] ./ (1. .- θ[:α]) * δₓ_f(xK, xg)) .- θ[:λ] .* κd_f(xK, xg) ./
+                F .= 1e3 .* (I_f(xK, xg) .* (θ[:λ] * (1. - θ[:θ]) * θ[:α] / (1. - θ[:α]) * (1. - θ[:β])) ./
+                             (1. .- xK .* κp .- (θ[:α] / (1. - θ[:α])) .* δₓ_f(xK, xg)) .- θ[:λ] .* κd_f(xK, xg) ./
                              (1. .- yK_f(xK) .* κp .- (1. .- yK_f(xK) .- yg_f(xg)) .* κd_f(xK, xg) .+
-                              κfs_f(xK, xg)) - damping_function(max.(yg_f(xg), 0.))) .+
-                              (any(xg .> xg_upper) || any(xg .< xg_lower)) ? xg_residual_error : 0.
+                              κfs_f(xK, xg)) - damping_function(max.(yg_f(xg), 1e-15))) .+
+                              ((any(xg .> xg_upper) || any(xg .< xg_lower)) ? xg_residual_error : 0.)
             end
 
             if verbose == :high
@@ -281,45 +296,54 @@ function inside_iteration_li2020(w::S, p_interp, p::S, ∂p∂w::S, xK0::S, xg0:
                 # Plot xg_residual(xg_test_vec)
             end
 
-            out = nlsolve(xg_residual, [min(xg, xg_guess_prop * xg_upper)], autodiff = :forward)
-            xg  = out.zero
+            out = nlsolve(xg_residual, [min(xg0, xg_guess_prop * xg_upper)]; ftol = xg_tol)
+
+            xg  = out.zero[1]
             succeed_xg = out.f_converged
 
             # Full liquidity insurance
-            if abs(xg - θ[:β] / (1. - θ[:β]) * (xK - 1.)) < residual_tol[1]
+            @show out
+            @show xK, κp, xg
+            @show abs(xg - θ[:β] / (1. - θ[:β]) * (xK - 1.))
+            @show abs(xg - θ[:ϵ])
+            @show xg_residual([0.], xg)
+            @show abs(xg - Q / (w * (p + Q̂)))
+            if abs(xg - θ[:β] / (1. - θ[:β]) * (xK - 1.)) < residual_tol[4]
+                @show "Full liquidity"
+                @show xg
                 xg = θ[:β] / (1. - θ[:β]) * (xK - 1.)
                 succeed_xg = true
             end
 
             # Boundary case
-            if (abs(xg - θ[:ϵ]) < residual_tol[1]) && (xg_residual(F, xg) < 0)
+            if (abs(xg - θ[:ϵ]) < residual_tol[1]) && (xg_residual([0.], xg)[1] < 0)
+                @show "Boundary"
+                @show xg
                 xg = θ[:ϵ]
                 succeed_xg = xg_residual < xg_residual([0.], xg)
             end
 
             # Last case
-            if abs(xg - Q / (w * (p * Q̂))) < residual_tol[3]
-                xg = Q / (w * (p * Q̂))
+            if abs(xg - Q / (w * (p + Q̂))) < residual_tol[3]
+                @show "Boundary"
+                @show xg
+                xg = Q / (w * (p + Q̂))
                 succeed_xg = true
             end
         end
-    else
-        succeed_κp = false
-        succeed_xK = false
-        succeed_xg = false
     end
 
     ## Step 3: Finish up the inside iteration
     if !(succeed_κp && succeed_xK && succeed_xg)
-        warn_str = "At w = $(w), the model has not been solved for"
+        warn_str = "At w = $(w), the model has not been solved for "
         to_warn  = Vector{String}(undef, 0)
-        if succeed_κp
+        if !succeed_κp
             push!(to_warn, "κp")
         end
-        if succeed_xK
+        if !succeed_xK
             push!(to_warn, "xK")
         end
-        if succeed_xg
+        if !succeed_xg
             push!(to_warn, "xg")
         end
         all_warns = join(to_warn, ", ")

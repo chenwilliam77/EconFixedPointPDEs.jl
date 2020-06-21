@@ -47,7 +47,7 @@ function initialize!(m::Li2020)
     set_boundary_conditions!(m, :∂p_∂w, [∂p∂w0, ∂p∂wN])
 
     # Settings for functional iteration
-    m <= Setting(:κp_guess, vcat(0., exp.(range(log(1e-3), stop = log((p₁ - p₀) / p₁), length = 19))))
+    m <= Setting(:κp_grid, vcat(0., exp.(range(log(1e-3), stop = log((p₁ - p₀) / p₁), length = 19))))
 
     return stategrid, funcvar, derivs, endo
 end
