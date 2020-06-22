@@ -128,17 +128,12 @@ function augment_variables_nojump!(m::Li2020, stategrid::StateGrid, ode_f::Funct
 
     # Unpack equilibrium endogenous variables and stategrid
     p    = funcvar[:p]
+    xg   = funcvar[:xg]
     derivs[:∂p∂w] = similar(p)
     ∂p∂w = derivs[:∂p∂w]
-    ψ    = endo[:ψ]
-    xK   = endo[:xK]
-    yK   = endo[:yK]
-    xg   = endo[:xg]
-    yg   = endo[:yg]
-    σp   = endo[:σp]
-    σ    = endo[:σ]
-    σh   = endo[:σh]
     w    = stategrid[:w]
+    @unpack ψ, xK, yK, yg, σp, σ, σh, μR_rd, μb_μh, μw = endo
+    Q = get_setting(m, :avg_gdp) * get_setting(m, :gov_bond_gdp_level)
 
     # Interpolate remainder of the solution for q from odesol
     i = findfirst(stategrid[:w] .>= odesol.t[end])
@@ -173,7 +168,7 @@ function augment_variables_nojump!(m::Li2020, stategrid::StateGrid, ode_f::Funct
         ∂p∂w[w0] = d0
         xK[w0]   = 0.
         yK[w0]   = 1.
-        yg[w0]   = endo[:Q][w0] / p[w0]
+        yg[w0]   = Q[w0] / p[w0]
         σp[w0]   = 0.
         σ[w0]    = 0.
         σh[w0]   = yK[w0] * θ[:σK]
@@ -185,11 +180,17 @@ function augment_variables_nojump!(m::Li2020, stategrid::StateGrid, ode_f::Funct
         xK[wN]   = 1.
         yK[wN]   = 0.
         xg[wN]   = 0.
-        yg[wN]   = 1 / p[wN] * endo[:Q][wN - 1] / (1 - w[wN - 1])
+        yg[wN]   = 1 / p[wN] * Q / (1 - w[wN - 1])
         σp[wN]   = 0.
         σ[wN]    = xK[wN] * θ[:σK]
         σh[wN]   = 0.
     end
+
+    μR_rd  .= (θ[:σK] .+ σp) .^ 2 .* xK - θ[:AH] ./ p
+    μb_μh  .= (xK - yK) .* μR_rd + (xK .* θ[:AH] - yK .* θ[:AL]) ./ p
+    μw     .= (1. .- w) .* (μb_μh + σh .^ 2 - σ .* σh - w .* (σ - σh) .^ 2 -
+                       θ[:η] ./ (1. .- w))
+    μw[end] = μw[end - 1] # drift should be similar at the end
 end
 
 """
@@ -203,11 +204,13 @@ after solving the equilibrium system of functional equations and using
 finite differences to approximate the derivatives.
 """
 function augment_variables_nojump!(m::Li2020, stategrid::StateGrid, funcvar::OrderedDict{Symbol, Vector{S}},
-                                      derivs::OrderedDict{Symbol, Vector{S}},
-                                      endo::OrderedDict{Symbol, Vector{S}}, odesol::ODESolution) where {S <: Real}
+                                   derivs::OrderedDict{Symbol, Vector{S}},
+                                   endo::OrderedDict{Symbol, Vector{S}}, odesol::ODESolution) where {S <: Real}
 
     # Unpack equilibrium endogenous variables and stategrid
-    p    = funcvar[:p]
+    @unpack p, xg, Q̂ = funcvar
+    Q̂  .= zero(eltype(m))
+    xg .= zero(eltype(m))
     derivs[:∂p_∂w] = similar(p)
     ∂p∂w   = derivs[:∂p_∂w]
     ∂²p∂w² = derivs[:∂²p_∂w²]
@@ -221,7 +224,7 @@ function augment_variables_nojump!(m::Li2020, stategrid::StateGrid, funcvar::Ord
     p[1:i] .= odesol(w[1:i])
     p[(i + 1):end] .= boundary_conditions(m)[:p][2]
     ∂p∂w   .= differentiate(w, p)    # as Li (2020) does it
-    ∂²p∂w² .= differentiate(w, ∂p∂w) # as Li (2020) does it
+    ∂p²p∂w² .= differentiate(w, ∂p∂w) # as Li (2020) does it
 
     # Solve for values not calculated during the calculation of equilibrium
     Φ = get_setting(m, :Φ)
@@ -229,7 +232,6 @@ function augment_variables_nojump!(m::Li2020, stategrid::StateGrid, funcvar::Ord
     ψ[(i + 1):end] .= 1.
     xK .= (ψ ./ w)
     yK .= (1. .- ψ) ./ (1. .- w)
-    xg .= zeros(eltype(w), length(w))
     yg .= fill(get_setting(m, :avg_gdp) * get_setting(m, :gov_bond_gdp_level), length(w)) ./ p ./ (1. .- w)
     yg[end] = yg[end - 1]
     σp .= ∂p∂w .* w .* (1. .- w) .* (xK - yK) ./ (1. .- ∂w .* w .* (1. .- w) .* (xK - yK)) .* θ[:σK]
@@ -239,13 +241,13 @@ function augment_variables_nojump!(m::Li2020, stategrid::StateGrid, funcvar::Ord
 
     # Calculate remaining objects
     invst   = map(x -> Φ(x, θ[:χ], θ[:δ]), p)
-    μR_rd  .= (θ[:σK] + σp) .^ 2 .* xK - θ[:AH] ./ p
+    μR_rd  .= (θ[:σK] .+ σp) .^ 2 .* xK - θ[:AH] ./ p
     rd_rg  .= 0.
     μb_μh  .= (xK - yK) .* μR_rd + (xK .* θ[:AH] - yK .* θ[:AL]) ./ p - (xg - yg) .* rd_rg
     μw     .= (1. .- w) .* (μb_μh + σh .^ 2 - σ .* σh - w .* (σ - σh) .^ 2 -
                        θ[:η] ./ (1. .- w))
     μw[end] = μw[end - 1] # drift should be similar at the end
-    μp     .= ∂p∂w .* w .* μw + (1. / 2.) .* ∂²∂w² .* (w .* (1. .- w) .* (σ - σh)) .^ 2
+    μp     .= ∂p∂w .* w .* μw + (1. / 2.) .* ∂p²∂w² .* (w .* (1. .- w) .* (σ - σh)) .^ 2
     μp[end] = μp[end - 1] # drift should be similar at the end
     μK     .= map(x -> f_μK(x, θ[:χ], θ[:δ]), p)
     μR     .= μp .- θ[:δ] + μK + θ[:σK] .* σp - invst ./ p

@@ -6,14 +6,14 @@ solve(m; nojump = false)
 func_iter MUST return the values in the same order as they are in `m.functional_variables`.
 Should also be clear on the requisites for func_iter.
 """
-function solve(m::AbstractNLCTModel, init_guess::OrderedDict = OrderedDict{Symbol, Vector{Float64}}();
+function solve(m::AbstractNLCTFPModel, init_guess::OrderedDict = OrderedDict{Symbol, Vector{Float64}}();
                nojump::Bool = false, nojump_method::Symbol = :ode, update_method::Symbol = :average,
                init_slm_coefs::OrderedDict = OrderedDict{Symbol, Vector{Float64}}(),
                individual_convergence::OrderedDict{Symbol, Vector{Float64}} = OrderedDict{Symbol, Vector{Float64}}(),
-               error_calc::Symbol = :total_error, type_checks::Bool = true, verbose::Symbol = :none)
+               error_calc::Symbol = :total_error, type_checks::Bool = true, return_sol::Bool = false, verbose::Symbol = :none)
 
     if nojump
-        return solve_nojump(m; method = nojump_method, verbose = verbose)
+        return solve_nojump(m; method = nojump_method, return_sol = return_sol, verbose = verbose)
     else
         @assert !isempty(init_guess) "An initial guess for functional variables must be passed as the second argument to solve."
 
@@ -162,8 +162,8 @@ solves the no-jump equilibrium in `m`. The only available method currently is `:
 ODE methods. Planned extensions include `:pseudo_transient_continuation` via EconPDEs.jl
 and Chebyshev/Smolyak projection via BasisMatrices.jl/SmolyakApprox.jl
 """
-function solve_nojump(m::AbstractNLCTModel; method::Symbol = :ode, verbose::Symbol = :none)
-    stategrid, functional_variables, derivatives, endogenous_variables = initialize!(m)
+function solve_nojump(m::AbstractNLCTFPModel; method::Symbol = :ode, return_sol::Bool = false, verbose::Symbol = :none)
+    stategrid, functional_variables, derivatives, endogenous_variables = initialize_nojump!(m)
 
     if (method == :ode || method == :ODE) && ndims(stategrid) == 1 # Univariate no jump model => use ODE methods
         s = collect(keys(get_stategrid(m)))[1] # state variable name
@@ -177,10 +177,17 @@ function solve_nojump(m::AbstractNLCTModel; method::Symbol = :ode, verbose::Symb
                     abstol = get_setting(m, :ode_abstol), callback = ode_callback)
 
         augment_variables_nojump!(m, stategrid, ode_f, functional_variables,
-                          derivatives, endogenous_variables, sol)
+                                  derivatives, endogenous_variables, sol)
 
-        return stategrid, functional_variables, derivatives, endogenous_variables
+        if return_sol
+            return stategrid, functional_variables, derivatives, endogenous_variables, sol
+        else
+            return stategrid, functional_variables, derivatives, endogenous_variables
+        end
     elseif false
         # Add implementation for pseudo-transient continuation
     end
 end
+
+# TO DO: write a copy of solve_nojump or a wrapper that takes in specifically an AbstractNLCTDiffusionModel,
+# which is for models that do not have any jumps

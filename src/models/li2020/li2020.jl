@@ -1,6 +1,6 @@
 """
 ```
-Li2020{T} <: AbstractRepModel{T}
+Li2020{T} <: AbstractNLCTFPModel{T}
 ```
 
 The `Li2020` type defines the structure of the simple New Keynesian DSGE
@@ -67,7 +67,7 @@ The following fields are dictionaries that map human-readable names to indices.
   dictionary that stores names and transformations to/from model units. See
   `PseudoObservable` for further details.
 """
-mutable struct Li2020{T} <: AbstractNLCTModel{T}
+mutable struct Li2020{T} <: AbstractNLCTFPModel{T}
     parameters::ParameterVector{T}                         # vector of all time-invariant model parameters
     keys::OrderedDict{Symbol,Int}                          # human-readable names for all the model
                                                            # parameters and steady-states
@@ -269,24 +269,28 @@ function model_settings!(m::Li2020)
     m <= Setting(:p₀_perturb, 1e-14, "Perturbation of boundary condition for q at w = 0")
     m <= Setting(:κp_grid, Vector{Float64}(undef, 0),
                  "Vector of guesses for κp used during iteration for new κp and xK within each functional loop")
-    m <= Setting(:p_fitted_interpolant, Gridded(Linear()), "Interpolant method for fitted p.")
+    m <= Setting(:p_interpolant, Gridded(Linear()), "Interpolant method for fitted p.")
     m <= Setting(:xK_interpolant, Gridded(Linear()), "Interpolant method for xK after solving xK for each guess of κp.")
     m <= Setting(:xg_interpolant, Gridded(Linear()), "Interpolant method for xg after solving xK and κp.")
     m <= Setting(:κp_interpolant, Gridded(Linear()), "Interpolant method for κp after solving xK and κp.")
-    m <= Setting(:inside_iteration_nlsolve_tol, 1e-6, "Tolerance for nlsolve for the inside iteration")
-    m <= Setting(:xg_tol, 2e-3, "Tolerance for nlsolve when solving for xg")
+    m <= Setting(:Q̂_interpolant, Gridded(Linear()), "Interpolant method for Q̂.")
+    m <= Setting(:inside_iteration_nlsolve_tol, 1e-6, "Tolerance for nlsolve in the inside iteration")
+    m <= Setting(:inside_iteration_nlsolve_max_iter, 400, "Maximum number of iterations for nlsolve for the inside iteration")
+    m <= Setting(:xg_tol, 2e-3, "Lower but permissible tolerance for xg fixed point in the inside iteration")
     m <= Setting(:yg_tol, 1e-5, "Lowest permissible value for yg")
+    m <= Setting(:p_tol, 1e-8, "Tolerance when calculating p after completing an inside iteration")
     m <= Setting(:firesale_bound, 0.99, "Upper bound for size of firesale jumps that do not wipe out a banker's net worth")
     m <= Setting(:firesale_interpolant, Gridded(Linear()), "Interpolant method for the firesale value.")
+    m <= Setting(:N_GH, 10, "Number of nodes for Gauss-Hermite quadrature.")
+    m <= Setting(:Q̂_tol, 1e-5, "Tolerance for approximation of Q̂ via Gauss-Hermite quadrature")
+    m <= Setting(:Q̂_max_it, 1000, "Maximum number of iterations for approximation of Q̂.")
+    m <= Setting(:dt, 1. / 12., "Simulation interval for Q̂ approximation as a fraction of a 1 year")
 
     # Other settings for initialization
-    m <= Setting(:nojump_parameters, [:ρ, :AH, :AL, :σK, :χ, :δ], "Keys of parameters used when solving the no-jump equilibrium.")
+    m <= Setting(:nojump_parameters, [:ρ, :AH, :AL, :σK, :χ, :δ, :η], "Keys of parameters used when solving the no-jump equilibrium.")
 
     # Calibration targets
     m <= Setting(:avg_gdp, 0.145, "Average GDP")
     m <= Setting(:liq_gdp_ratio, 0.39, "Average Liquidity/GDP ratio in the data")
     m <= Setting(:gov_bond_gdp_level, 0.3, "Ratio of Government Bonds to GDP")
-
-    # Simulation settings
-    m <= Setting(:dt, 1. / 12., "Simulation interval as a fraction of a 1 year")
 end

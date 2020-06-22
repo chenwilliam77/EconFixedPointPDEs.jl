@@ -3,7 +3,7 @@
 abstract type AbstractNLCTModel{T} <: AbstractModel{T} end
 ```
 
-The AbstractNLCTModel is defined as a subtype of AbstractModel to accommodate
+The `AbstractNLCTModel` is defined as a subtype of `AbstractModel` to accommodate
 the numerical methods and procedures specific to global solutions of
 nonlinear continuous-time models.
 """
@@ -34,6 +34,18 @@ n_endogenous_variables(m::AbstractNLCTModel) = length(get_endogenous_variables(m
 n_exogenous_shocks(m::AbstractNLCTModel) = length(get_exogenous_shocks(m))
 
 boundary_conditions(m::AbstractNLCTModel) = get_setting(m, :boundary_conditions)
+
+"""
+```
+abstract type AbstractNLCTFPModel{T} <: AbstractNLCTModel{T} end
+```
+
+The `AbstractNLCTFPModel1 is defined as a subtype of `AbstractNLCTModel` to accommodate
+the numerical methods and procedures specific to global solutions of
+nonlinear continuous-time models which involve fixed point problems (e.g.
+models with jump diffusions)
+"""
+abstract type AbstractNLCTFPModel{T} <: AbstractNLCTModel{T} end
 
 """
 ```
@@ -99,3 +111,5 @@ function initialize!(m::AbstractNLCTModel)
 
     return stategrid, funcvar, derivs, endo
 end
+
+# MAYBE DEFINE AN NLCTSYSTEM type w/stategrid, funcvar, derivs, and endo as types

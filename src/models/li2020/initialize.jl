@@ -2,10 +2,43 @@
 ```
 initialize!(m::Li2020)
 ```
+
 sets up all initial conditions for solving Li2020, such as the grid and boundary conditions.
 """
 function initialize!(m::Li2020)
 
+    # Use no jump solution for p as initial guess
+    stategrid, funcvar, derivs, endo = solve(m; nojump = true, nojump_method = :ode) # This calls initialize_nojump! already
+
+    # Interpolate w/SLM, first over the "ODE" part, then interpolate once more
+    p₀, p₁ = get_setting(m, :boundary_conditions)[:p]
+    ψ_is_1 = findfirst(funcvar[:p] .>= p₁)
+    p_SLM = SLM(stategrid[:w][1:ψ_is_1],  funcvar[:p][1:ψ_is_1];  concave_down = true, left_value = p₀,
+                right_value = p₁, increasing = true, knots = floor(Int, ψ_is_1 / 4))
+    funcvar[:p][1:ψ_is_1] .= eval(p_SLM, stategrid[:w][1:ψ_is_1])
+    p_SLM = SLM(stategrid[:w], funcvar[:p], concave_down = true, increasing = true, left_value = p₀,
+                right_value = p₁, knots = floor(Int, length(stategrid) / 8))
+    funcvar[:p] = eval(p_SLM, stategrid[:w])
+
+    # Guess for xg and Q̂
+    Q = get_setting(m, :gov_bond_gdp_level) * get_setting(m, :avg_gdp)
+    funcvar[:xg] .= Q ./ (2. .* stategrid[:w] .* funcvar[:p])
+    funcvar[:Q̂]  .= fill(.05 * Q, length(stategrid))
+
+    # Some settings for functional iteration
+    m <= Setting(:κp_grid, vcat(0., exp.(range(log(1e-3), stop = log((p₁ - p₀) / p₁), length = 19))))
+
+    return stategrid, funcvar, derivs, endo
+end
+
+"""
+```
+initialize_nojump!(m::Li2020)
+```
+
+initializes the no-jump equilibrium for the Li (2020) model.
+"""
+function initialize_nojump!(m::Li2020)
     model_type = eltype(m)
     N          = get_setting(m, :N)
 
@@ -45,9 +78,6 @@ function initialize!(m::Li2020)
     ∂p∂wN = 0.
     set_boundary_conditions!(m, :p, [p₀, p₁])
     set_boundary_conditions!(m, :∂p_∂w, [∂p∂w0, ∂p∂wN])
-
-    # Settings for functional iteration
-    m <= Setting(:κp_grid, vcat(0., exp.(range(log(1e-3), stop = log((p₁ - p₀) / p₁), length = 19))))
 
     return stategrid, funcvar, derivs, endo
 end

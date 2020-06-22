@@ -9,10 +9,10 @@ equilibrium in Li (2020) with jumps.
 function eqcond(m::Li2020)
 
     # Unpack items from m that are needed to construct the functional loop
-    p_fitted_interpolant  = get_setting(m, :p_fitted_interpolant)
-    xK_fitted_interpolant = get_setting(m, :xK_fitted_interpolant)
-    xg_fitted_interpolant = get_setting(m, :xg_fitted_interpolant)
-    κp_fitted_interpolant = get_setting(m, :κp_fitted_interpolant)
+    p_interpolant  = get_setting(m, :p_interpolant)
+    xK_interpolant = get_setting(m, :xK_interpolant)
+    xg_interpolant = get_setting(m, :xg_interpolant)
+    κp_interpolant = get_setting(m, :κp_interpolant)
     firesale_interpolant  = get_setting(m, :firesale_interpolant)
     Q̂_interpolant         = get_setting(m, :Q̂_interpolant)
     Φ = get_setting(m, :Φ)
@@ -22,6 +22,7 @@ function eqcond(m::Li2020)
     κp_grid = get_setting(m, :κp_grid)
     damping_function = get_setting(m, :damping_function)
     f_μK = get_setting(m, :μK)
+    xg_tol = get_setting(m, :xg_tol)
     yg_tol = get_setting(m, :yg_tol)
     firesale_bound = get_setting(m, :firesale_bound)
     N_GH = get_setting(m, :N_GH)
@@ -29,7 +30,8 @@ function eqcond(m::Li2020)
     Q̂_max_it = get_setting(m, :Q̂_max_it)
     dt = get_setting(m, :dt)
     inside_iter_tol = get_setting(m, :inside_iteration_nlsolve_tol)
-    xg_tol = get_setting(m, :xg_tol)
+    inside_iter_max_iter = get_setting(m, :inside_iteration_nlsolve_max_iter)
+    p_tol = get_setting(m, :p_tol)
 
     # Construct the initial guess for p by interpolating the solution from
     # the no jump equilibrium via SLM
@@ -38,89 +40,98 @@ function eqcond(m::Li2020)
     # over which we are iterating. For Li (2020), these are p, xg, and Q̂.
     f = function _functional_loop_li2020(stategrid::StateGrid, funcvar::OrderedDict{Symbol, Vector{S}},
                                          derivs::OrderedDict{Symbol, Vector{S}},
-                                         endo::OrderedDict{Symbol, Vector{S}}, θ::NamedTuple;
+                                         endo::AbstractDict{Symbol, Vector{S}}, θ::NamedTuple;
                                          init_coefs::OrderedDict{Symbol, Vector{S}} =
                                          OrderedDict{Symbol, Vector{S}}(:p => Vector{S}(undef, 0)),
-                                         individual_convergence::OrderedDict{Symbol, Vector{S}} =
-                                         OrderedDict{Symbol, Vector{S}}(),
+                                         individual_convergence::AbstractDict{Symbol, Vector{S}} =
+                                         Dict{Symbol, Vector{S}}(),
                                          verbose::Symbol = :none) where {S <: Real}
 
         # Unpack variables of interest
-        p    = funcvar[:p]
-        ∂p∂w = derivs[:∂p∂w]
-        κp   = endo[:κp]
-        Q̂    = endo[:Q̂]
-        xg   = endo[:xg]
-        ψ    = endo[:ψ]
-        xK   = endo[:xK]
+        @unpack p, Q̂, xg = funcvar
+        ∂p_∂w = derivs[:∂p_∂w]
+        @unpack κp, ψ, xK = endo
 
         # Initialize storages for these values b/c they are separately stored at first due to tempered updating
         p_new  = similar(p)
         xg_new = similar(xg)
         κp_new = similar(κp)
 
+        # Add boundaries
+        p_new[1]    = p[1]
+        p_new[end]  = p[end]
+        xg_new[1]   = xg[1]
+        xg_new[end] = xg[end]
+        κp_new[1]   = κp[1]
+        κp_new[end] = 0.
+
         ## Step 1: Update for a new round
-        p_fitted = extrapolate(interpolate((stategrid[:w], ), p, p_fitted_interpolant), Line())
+        p_fitted = extrapolate(interpolate((stategrid[:w], ), p, p_interpolant), Line())
         ψ  .= map((x, y) -> (Φ(x, θ[:χ], θ[:δ]) + θ[:ρ] * (x + y) - θ[:AL]) / (θ[:AH] - θ[:AL]), p, Q̂)
         xK .= ψ ./ stategrid[:w] .* p ./ (p + Q̂)
 
-        solved_κp = BitArray(undef, length(p))
-        solved_xK = BitArray(undef, length(p))
-        solved_xg = BitArray(undef, length(p))
-        solved    = BitArray(undef, length(p))
+        solved_κp = trues(length(p)) # always solved at boundaries, but we need to know about the interior
+        solved_xK = trues(length(p))
+        solved_xg = trues(length(p))
+        solved    = trues(length(p))
 
-        ## Step 2: Solve p and xg for each grid point
+        ## Step 2: Solve p and xg for each grid point in the interior
         for i in 2:(length(stategrid) - 1)
-            wᵢ    = stategrid[:w][i]
-            pᵢ    = p[i]
-            xKᵢ   = xK[i]
-            xgᵢ   = xg[i]
-            ∂p∂wᵢ = ∂p∂w[i]
-            Q̂ᵢ    = Q̂[i]
+            wᵢ     = stategrid[:w][i]
+            pᵢ     = p[i]
+            xKᵢ    = xK[i]
+            xgᵢ    = xg[i]
+            ∂p_∂wᵢ = ∂p_∂w[i]
+            Q̂ᵢ     = Q̂[i]
 
             κp_new[i], xKᵢ, xg_new[i], succeed_κp, succeed_xK, succeed_xg =
-                inside_iteration_li2020(wᵢ, p_fitted, pᵢ, ∂p∂wᵢ, xKᵢ,
+                inside_iteration_li2020(wᵢ, p_fitted, pᵢ, ∂p_∂wᵢ, xKᵢ,
                                         xgᵢ, Q, Q̂ᵢ, max_jump, θ;
                                         κp_grid = κp_grid, xK_interpolant = xK_interpolant,
-                                        damping_function = damping_function,
-                                        nlsolve_tol = inside_iter_tol, xg_tol = xg_tol,
-                                        verbose = verbose)
+                                        damping_function = damping_function, xg_tol = xg_tol,
+                                        nlsolve_tol = inside_iter_tol,
+                                        nlsolve_iter = inside_iter_max_iter, verbose = verbose)
 
-            ψᵢ = xKᵢ / wᵢ / (pᵢ / (pᵢ + Q̂ᵢ))
-            p_new[i] = nlsolve(x -> Φ(x, θ[:χ], θ[:δ]) .+ θ[:ρ] .* (x .+ Q̂ᵢ) .- (ψᵢ * θ[:AH] + (1. - ψᵢ) * θ[:AL]),
-                           [(p₀ + p₁) / 2.])#, autodiff = :forward)
+            ψᵢ = xKᵢ * wᵢ / (pᵢ / (pᵢ + Q̂ᵢ))
+            p_new[i] = nlsolve(x -> Φ(x[1], θ[:χ], θ[:δ]) .+ θ[:ρ] .* (x[1] .+ Q̂ᵢ) .- (ψᵢ * θ[:AH] + (1. - ψᵢ) * θ[:AL]),
+                           [(p₀ + p₁) / 2.]; ftol = p_tol).zero[1]
             solved_κp[i] = succeed_κp
             solved_xK[i] = succeed_xK
             solved_xg[i] = succeed_xg
         end
 
         # Where was the fixed point system correctly solved?
-        solved_index = findall(map(i -> solved_xK[i] && solved_xg[i] && solved_κp[i], 1:length(w)))
+        solved_index = findall(map(i -> solved_xK[i] & solved_xg[i] & solved_κp[i], 1:(length(stategrid) - 1)))
 
         # Solve for p over the whole grid by interpolating over points with success
-        p_new_slm = SLM(w[solved_index], p_new[solved_index]; increasing = true,
-                        concave_down = true, left_value = p₀, right_value = p₁,
-                        knots = Int(round(count(solved_index) / 2)), init = init_coefs[:p])
-        p_new = slmeval(w, p_new_slm)
+        p_new_slm = SLM(stategrid[:w][solved_index], p_new[solved_index]; increasing = true,
+                        concave_down = true, left_value = p₀, right_value = p_new[solved_index[end]],
+                        knots = Int(round(length(solved_index) / 2)), init = init_coefs[:p])
+        if !isempty(init_coefs[:p]) && length(solved_index) == length(stategrid) - 1 # then we store the coefficients guess for the next round
+            init_coefs[:p] .= vec(get_coef(p_new_slm))
+        end
 
-        # An alternative to slm: p_new_spl  = Spline1D(w[solved_index], p_new[solved_index], bc = "extrapolate")
+        # An alternative to SLM is Dierckx: p_new_spl  = Spline1D(w[solved_index], p_new[solved_index], bc = "extrapolate")
         # but it won't preserve features like monotonicity
 
-        # Interpolate other quantities using a 1D cubic Spline
-        xg_new_spl = interpolate((w[solved_xg], ), xg_new[solved_xg], xg_interpolant)
-        κp_new_spl = interpolate((w[solved_xg], ), xg_new[solved_xg], κp_interpolant)
-
-        # An alternative: Dierckx
-        # xg_new_spl = Spline1D(w[solved_xg], xg_new[solved_xg], bc = "extrapolate")
-        # κp_new_spl = Spline1D(w[solved_κp], κp_new[solved_κp], bc = "extrapolate")
-
         # Evaluate interpolants
-        p_new  .= p_new_spl(w)
-        xg_new .= xg_new_spl(w)
-        κp_new .= κp_new_spl(w)
+        p_new[1:end - 1] .= eval(p_new_slm, stategrid[:w][1:end - 1])
+        p_new[end] = p_new[end - 1]
+        if !all(solved_xg) # if all(solved_xg), then linear interpolation will just return the same values as they currently are
+            # Interpolate other quantities using a 1D cubic Spline
+            xg_new_spl = extrapolate(interpolate((stategrid[:w][solved_xg], ), xg_new[solved_xg], xg_interpolant), Line())
+            κp_new_spl = extrapolate(interpolate((stategrid[:w][solved_xg], ), xg_new[solved_xg], κp_interpolant), Line())
+
+            # An alternative: Dierckx
+            # xg_new_spl = Spline1D(stategrid[:w][solved_xg], xg_new[solved_xg], bc = "extrapolate")
+            # κp_new_spl = Spline1D(stategrid[:w][solved_κp], κp_new[solved_κp], bc = "extrapolate")
+
+            xg_new[1:end - 1] .= xg_new_spl(stategrid[:w][1:end - 1])
+            κp_new[1:end - 1] .= κp_new_spl(stategrid[:w][1:end - 1])
+        end
 
         if verbose == :high
-            println("$(100 * (length(solved_index) + 1) / length(w))% of the inner iteration is solved")
+            println("$(100 * (length(solved_index) + 1) / length(stategrid[:w]))% of the inner iteration is solved")
             println("Calculating Q̂ . . .")
         end
 
@@ -128,16 +139,28 @@ function eqcond(m::Li2020)
         calc_Q̂ = haskey(individual_convergence, :Q̂) ? individual_convergence[:Q̂][1] == 0. : true
 
         if calc_Q̂
-            prepare_Q̂!(funcvar, derivs, endo, θ, f_μK, Φ, yg_tol, firesale_bound, firesale_interpolant, Q)
+            prepare_Q̂!(stategrid, funcvar, derivs, endo, θ, f_μK, Φ, yg_tol, firesale_bound, firesale_interpolant, Q)
 
-            # MAY WANT TO UPDATE THIS. IN THE ORIGINAL CODE, WE USE ZEROS FOR THE GUESS OF QHAT RATHER THAN THE PREVIOUS GUESS.
+            if !isempty(individual_convergence)
+                Q̂_old = copy(funcvar[:Q̂]) # So we can compare since we update funcvar[:Q̂] in place
+                    # May also needt o make default and update funcvar so that we don't update the "old" ones on accident
+            end
+
             Q̂_new = Q̂_calculation(stategrid, funcvar[:Q̂], endo[:μw], endo[:σw],
                                   endo[:κw], endo[:rf], endo[:rg], endo[:rh], Q, θ[:λ];
-                                  N_GH = N_GH, tol = Q̂_tol, max_it = Q̂_max_it, Q̂_interp_method = Q̂_interpolant, dt = dt)
+                                  N_GH = N_GH, tol = Q̂_tol, max_it = Q̂_max_it, Q̂_interp_method = Q̂_interpolant, dt = dt,
+                                  verbose = verbose)
+            # In the original code, a vector of zeros is used as the initial guess
+#=            Q̂_new = Q̂_calculation(stategrid, zeros(eltype(m), length(stategrid)), endo[:μw], endo[:σw],
+                                  endo[:κw], endo[:rf], endo[:rg], endo[:rh], Q, θ[:λ];
+                                  N_GH = N_GH, tol = Q̂_tol, max_it = Q̂_max_it, Q̂_interp_method = Q̂_interpolant, dt = dt,
+                                  verbose = verbose)=#
 
-            if sum(abs.(Q̂_new - funcvar[:Q̂])) < individual_convergence[:Q̂][2]
-                individual_convergence[:Q̂][1] = 1.
-                println(verbose, :high, "Q̂ has converged!")
+            if !isempty(individual_convergence)
+                if sum(abs.(funcvar[:Q̂] - Q̂_old)) < individual_convergence[:Q̂][2]
+                    individual_convergence[:Q̂][1] = 1.
+                    println(verbose, :high, "Q̂ has converged!")
+                end
             end
         end
 
@@ -155,15 +178,16 @@ inside_iteration_li2020(m, stategrid, funcvar, xK, xg, i; verbose = :low)
 calculates a new xK, xg, and κp within a functional iteration loop
 when solving equilibrium in Li (2020) with jumps.
 """
-function inside_iteration_li2020(w::S, p_interp::Interpolations.AbstractInterpolation, p::S, ∂p∂w::S, xK0::S, xg0::S, Q::S, Q̂::S, max_jump::S,
+function inside_iteration_li2020(w::S, p_interp::Interpolations.AbstractInterpolation, p::S, ∂p_∂w::S,
+                                 xK0::S, xg0::S, Q::S, Q̂::S, max_jump::S,
                                  θ::NamedTuple; κp_grid::AbstractVector{S} = Vector{S}(undef, 0),
                                  xK_max::S = 1e10, κp_residual_error::S = 1e30, xK_residual_error::S = 1e20,
                                  xg_residual_error::S = 1e20,
                                  xK_guess_prop::S = 0.9, xg_guess_prop::S = 0.999, κp_guess::S = 1e-3,
-                                 residual_tol::Tuple{S, S, S, S} = (1e-6, 5e-5, 1e-3, 5e-5),
+                                 xg_tol::S = 5e-4, residual_tol::Tuple{S, S, S} = (1e-6, 5e-5, 1e-3),
                                  xK_interpolant::Interpolations.InterpolationType = Gridded(Linear()),
                                  damping_function::Function = x -> 3e-8 ./ x,
-                                 nlsolve_tol::S = 1e-8, xg_tol::S = 1e-8, verbose::Symbol = :low) where {S <: Real}
+                                 nlsolve_tol::S = 1e-8, nlsolve_iter::Int = 400, verbose::Symbol = :low) where {S <: Real}
 
     ## Set up
 
@@ -176,7 +200,7 @@ function inside_iteration_li2020(w::S, p_interp::Interpolations.AbstractInterpol
     yK_f(xK) = (p ./ (p .+ Q̂) .- w .* xK) ./ (1. .- w)
     yg_f(xg) = (Q ./ (p .+ Q̂) .- w .* xg) ./ (1. .- w)
     yg    = yg_f(xg0) # initializing this value for use in some of the following functions
-    σp_f(xK) = ∂p∂w .* w .* (1. .- w) .* (xK .- yK_f(xK)) ./ (1. .- ∂p∂w .* w .* (1. .- w) .* (xK .- yK_f(xK))) .* θ[:σK]
+    σp_f(xK) = ∂p_∂w .* w .* (1. .- w) .* (xK .- yK_f(xK)) ./ (1. .- ∂p_∂w .* w .* (1. .- w) .* (xK .- yK_f(xK))) .* θ[:σK]
     δₓ_f(xK, xg) = max.(θ[:β] .* (xK .+  xg .- 1.) .- xg, 0.)
     I_f(xK, xg) = map(x -> x ? 1. : 0., (θ[:β] .* (xK .+ xg .- 1.) .- xg) .> 0.)
     κd_f(xK, xg) = θ[:θ] .* max.(xK .+ (θ[:ϵ] - 1.), 0.) ./ (xK .+ xg .- 1.)
@@ -187,7 +211,7 @@ function inside_iteration_li2020(w::S, p_interp::Interpolations.AbstractInterpol
     ## Step 1. Solve the xK and κp together
 
     # Define some bounds for where to search
-    xK_upper = min(∂p∂w >= 0. ? (1. + 1. ./ (w .* ∂p∂w)) : xK_max, p ./ (p .+ Q̂) ./ w)
+    xK_upper = min(∂p_∂w >= 0. ? (1. + 1. ./ (w .* ∂p_∂w)) : xK_max, p ./ (p .+ Q̂) ./ w)
     xK_lower = 1.
     κp_upper = max_jump
     κp_lower = 0.
@@ -227,8 +251,12 @@ function inside_iteration_li2020(w::S, p_interp::Interpolations.AbstractInterpol
         for (j, κp) in enumerate(κp_grid)
             xK_tighter_upper = (1. - θ[:θ] * (1. - θ[:ϵ]) - (1. - θ[:θ]) * (θ[:α] / (1. - θ[:α])) * (θ[:β] * (xg0 - 1.) - xg0)) /
                 ((1. - θ[:θ]) * (κp + θ[:α] / (1. - θ[:α]) * θ[:β]))
+            xK_guess = xK_guess_prop * min(xK0, (1 - θ[:ϵ]) / κp, xK_tighter_upper)
+            if xK_guess < 1.
+                xK_guess = (1. + xK0) / 2.
+            end
             out = nlsolve((F, xK) -> xK_residual(F, κp, xK, min(xK_tighter_upper, xK_upper)),
-                          [max(1., xK_guess_prop * min(xK0, (1 - θ[:ϵ]) / κp, xK_tighter_upper))]; ftol = nlsolve_tol)
+                          [xK_guess]; ftol = nlsolve_tol)
 
             xKs[j] = out.zero[1]
             residual = out.residual_norm # w/1 variable, this is precisely the residual
@@ -236,9 +264,6 @@ function inside_iteration_li2020(w::S, p_interp::Interpolations.AbstractInterpol
             if abs(residual) > residual_tol[1] # Is the residual too big?
 
                 # If the solution is on the order of yK = 0, then it's fine
-                @show xKs[j] #nlsolve is not finding the close answer, so we need to handle the case such that xKs = p / (p + qhat / w) and we don't use xK = 1
-                @show abs(xKs[j] - p / (p + Q̂) / w)
-                @show xK_residual([0.], κp, xKs[j], min(xK_upper, xK_tighter_upper))[1]
                 if abs(xKs[j] - p / (p + Q̂) / w) < residual_tol[2] &&
                     xK_residual([0.], κp, xKs[j], min(xK_upper, xK_tighter_upper))[1] < 0.
                     residual = 0.
@@ -255,16 +280,16 @@ function inside_iteration_li2020(w::S, p_interp::Interpolations.AbstractInterpol
 
         # Now solve for κp
         roots_xK = extrapolate(interpolate((κp_grid[solved_xKs], ), xKs[solved_xKs], xK_interpolant), Line())
-        @show abs.(xKs .+ xg0 .- 1.)
         if all(abs.(xKs .+ xg0 .- 1.) .>= residual_tol[1]) # Banks are still leveraged
-            out = nlsolve((F, κp) -> κp_residual(F, κp, roots_xK(κp)), [κp_guess]; ftol = nlsolve_tol)
+            out = nlsolve((F, κp) -> κp_residual(F, κp, roots_xK(κp)), [κp_guess]; ftol = nlsolve_tol, iterations = nlsolve_iter)
             κp = out.zero[1]
             succeed_κp = out.f_converged
 
             xK_tighter_upper = (1. - θ[:θ] * (1. - θ[:ϵ]) - (1. - θ[:θ]) *
                                 θ[:α] / (1. - θ[:α]) * (θ[:β] * (xg0 - 1.) - xg0) ) /
                                 ((1. - θ[:θ]) * (κp + θ[:α] / (1. - θ[:α]) * θ[:β]))
-            out = nlsolve((F, xK) -> xK_residual(F, κp, xK, min(xK_tighter_upper, xK_upper)), [roots_xK(κp)]; ftol = nlsolve_tol)
+            out = nlsolve((F, xK) -> xK_residual(F, κp, xK, min(xK_tighter_upper, xK_upper)), [roots_xK(κp)];
+                          ftol = nlsolve_tol, iterations = nlsolve_iter)
             xK  = out.zero[1]
             succeed_xK = out.f_converged
 
@@ -296,39 +321,40 @@ function inside_iteration_li2020(w::S, p_interp::Interpolations.AbstractInterpol
                 # Plot xg_residual(xg_test_vec)
             end
 
-            out = nlsolve(xg_residual, [min(xg0, xg_guess_prop * xg_upper)]; ftol = xg_tol)
-
+            out = nlsolve(xg_residual, [min(xg0, xg_guess_prop * xg_upper)]; ftol = nlsolve_tol, iterations = nlsolve_iter)
             xg  = out.zero[1]
             succeed_xg = out.f_converged
 
             # Full liquidity insurance
-            @show out
-            @show xK, κp, xg
-            @show abs(xg - θ[:β] / (1. - θ[:β]) * (xK - 1.))
-            @show abs(xg - θ[:ϵ])
-            @show xg_residual([0.], xg)
-            @show abs(xg - Q / (w * (p + Q̂)))
-            if abs(xg - θ[:β] / (1. - θ[:β]) * (xK - 1.)) < residual_tol[4]
-                @show "Full liquidity"
-                @show xg
+            if abs(xg - θ[:β] / (1. - θ[:β]) * (xK - 1.)) < residual_tol[1]
                 xg = θ[:β] / (1. - θ[:β]) * (xK - 1.)
                 succeed_xg = true
             end
 
             # Boundary case
             if (abs(xg - θ[:ϵ]) < residual_tol[1]) && (xg_residual([0.], xg)[1] < 0)
-                @show "Boundary"
-                @show xg
                 xg = θ[:ϵ]
                 succeed_xg = xg_residual < xg_residual([0.], xg)
             end
 
-            # Last case
+            # Second to last case
             if abs(xg - Q / (w * (p + Q̂))) < residual_tol[3]
-                @show "Boundary"
-                @show xg
                 xg = Q / (w * (p + Q̂))
                 succeed_xg = true
+            end
+
+            # Check if the xg solution passes a weaker tolerance
+            if !succeed_xg
+                out = nlsolve(xg_residual, [min(xg0, xg_guess_prop * xg_upper)]; ftol = xg_tol, iterations = nlsolve_iter)
+                xg  = out.zero[1]
+                succeed_xg = out.f_converged
+
+                # Full liquidity insurance
+                abs(xg - θ[:β] / (1. - θ[:β]) * (xK - 1.))
+                if abs(xg - θ[:β] / (1. - θ[:β]) * (xK - 1.)) < residual_tol[2]
+                    xg = θ[:β] / (1. - θ[:β]) * (xK - 1.)
+                    succeed_xg = true
+                end
             end
         end
     end
@@ -371,13 +397,13 @@ function prepare_Q̂!(stategrid::StateGrid, funcvar::OrderedDict{Symbol, Vector{
                     firesale_interpolant::Interpolations.InterpolationType, Q::S) where {S <: Real}
     @unpack ψ, xK, yK, yg, σp, σ, σh, σw, μR_rd, rd_rg, μb_μh, μw, μp, μK, μR, rd, rg, μb, μh, κp, invst, κb, κd, κh, κfs, firesale_jump, κw, δ_x, indic, rf, rh, rd_rf, μp, μK, μR = endo
     @unpack p, xg, Q̂ = funcvar
-    ∂p∂w = derivs[:∂p_∂w]
+    ∂p_∂w = derivs[:∂p_∂w]
     ∂²p∂w² = derivs[:∂²p_∂w²]
     w    = stategrid[:w]
 
     # Calculate various quantities
-    ∂p∂w   .= differentiate(w, p)    # as Li (2020) does it
-    ∂²p∂w² .= differentiate(w, ∂p∂w)
+    ∂p_∂w  .= differentiate(w, p)    # as Li (2020) does it
+    ∂²p∂w² .= differentiate(w, ∂p_∂w)
     invst  .= map(x -> Φ(x, θ[:χ], θ[:δ]), p)
     ψ      .= (invst .+ θ[:ρ] .* (p + Q̂) .- θ[:AL]) ./ (θ[:AH] - θ[:AL])
     ψ[ψ .> 1.] .= 1.
@@ -395,7 +421,7 @@ function prepare_Q̂!(stategrid::StateGrid, funcvar::OrderedDict{Symbol, Vector{
     indic .= δ_x .> 0.
 
     # Volatilities
-    σp .= ∂p∂w .* w .* (1. .- w) .* (xK - yK) ./ (1. .- ∂p∂w .* w .* (1. .- w) .* (xK - yK)) .* θ[:σK]
+    σp .= ∂p_∂w .* w .* (1. .- w) .* (xK - yK) ./ (1. .- ∂p_∂w .* w .* (1. .- w) .* (xK - yK)) .* θ[:σK]
     σp[end] = 0. # no volatility at the end
     σ  .= xK .* (θ[:σK] .+ σp)
     σh .= yK .* (θ[:σK] .+ σp)
@@ -427,7 +453,7 @@ function prepare_Q̂!(stategrid::StateGrid, funcvar::OrderedDict{Symbol, Vector{
     μw      .= (1. .- w) .* (μb_μh + σh .^ 2 - σ .* σh - w .* (σ - σh) .^ 2 -
                        θ[:η] ./ (1. .- w))
     μw[end]  = μw[end - 1] # drift should be similar at the end
-    μp      .= ∂p∂w .* w .* μw + (1. / 2.) .* ∂²p∂w² .* (w .* (1. .- w) .* (σ - σh)) .^ 2
+    μp      .= ∂p_∂w .* w .* μw + (1. / 2.) .* ∂²p∂w² .* (w .* (1. .- w) .* (σ - σh)) .^ 2
     μp[end]  = μp[end - 1] # drift should be similar at the end
     μK      .= map(x -> f_μK(x, θ[:χ], θ[:δ]), p)
     μR      .= μp .- θ[:δ] + μK + θ[:σK] .* σp - invst ./ p
@@ -445,15 +471,16 @@ end
 Q̂_calculation(stategrid::StateGrid, Q̂::AbstractVector{S}, μw::AbstractVector{S}, σw::AbstractVector{S},
     κw::AbstractVector{S}, rf::AbstractVector{S}, rg::AbstractVector{S}, rh::AbstractVector{S}, Q::S, λ::S;
     N_GH::Int = 10, tol::S = 1e-5, max_it::Int = 1000, Q̂_interp_method = Gridded(Linear()),
-    testing::Bool = false) where {S <: Real}
+    testing::Bool = false, verbose::Symbol = :none) where {S <: Real}
 ```
 
 calculates Q̂ using Gauss-Hermite quadrature.
 """
 function Q̂_calculation(stategrid::StateGrid, Q̂::AbstractVector{S}, μw::AbstractVector{S}, σw::AbstractVector{S},
                        κw::AbstractVector{S}, rf::AbstractVector{S}, rg::AbstractVector{S}, rh::AbstractVector{S}, Q::S, λ::S;
-                       N_GH::Int = 10, tol::S = 1e-5, max_it::Int = 1000, Q̂_interp_method = Gridded(Linear()), dt::S = 1. / 12.,
-                       testing::Bool = false) where {S <: Real}
+                       N_GH::Int = 10, tol::S = 1e-5, max_it::Int = 1000,
+                       Q̂_interp_method::Interpolations.InterpolationType = Gridded(Linear()), dt::S = 1. / 12.,
+                       testing::Bool = false, verbose::Symbol = :low) where {S <: Real}
 
     ## Set up
     spread = rf - rg
@@ -499,6 +526,10 @@ function Q̂_calculation(stategrid::StateGrid, Q̂::AbstractVector{S}, μw::Abst
         end
     end
 
+    if verbose == :high && (iter_no < max_it || err < tol)
+        println("Finished calculating Q̂")
+    end
+
     if testing
         return Q̂, err_vec
     else
@@ -517,13 +548,13 @@ with no jumps and the events deciding termination
 function eqcond_nojump(m::Li2020)
     Φ  = get_setting(m, :Φ)
     ∂Φ = get_setting(m, :∂Φ)
-    ∂p∂w0, ∂p∂wN = get_setting(m, :boundary_conditions)[:∂p_∂w]
+    ∂p_∂w0, ∂p_∂wN = get_setting(m, :boundary_conditions)[:∂p_∂w]
 
     f1 = function _ode_nojump_li2020(p, θ, w)
         if w == 0.
-            ∂p∂w = ∂p∂w0
+            ∂p_∂w = ∂p_∂w0
         elseif w == 1.
-            ∂p∂w = ∂p∂wN
+            ∂p_∂w = ∂p_∂wN
         else
             ψ = max(min((Φ(p, θ[:χ], θ[:δ]) + θ[:ρ] * p - θ[:AL]) / (θ[:AH] - θ[:AL]), 1.), 0.)
             xK = (ψ / w)
@@ -532,10 +563,10 @@ function eqcond_nojump(m::Li2020)
             σ  = xK * (θ[:σK] + σp)
             σh = yK * (θ[:σK] + σp)
 
-            ∂p∂w = max(0., σp ./ (w .* (1. - w) .* (xK - yK) .* (θ[:σK] + σp)))
+            ∂p_∂w = max(0., σp ./ (w .* (1. - w) .* (xK - yK) .* (θ[:σK] + σp)))
         end
 
-        return ∂p∂w
+        return ∂p_∂w
     end
 
     # Terminal condition
