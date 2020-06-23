@@ -141,15 +141,12 @@ function eqcond(m::Li2020)
         if calc_Q̂
             prepare_Q̂!(stategrid, funcvar, derivs, endo, θ, f_μK, Φ, yg_tol, firesale_bound, firesale_interpolant, Q)
 
-            if !isempty(individual_convergence)
-                Q̂_old = copy(funcvar[:Q̂]) # So we can compare since we update funcvar[:Q̂] in place
-                    # May also needt o make default and update funcvar so that we don't update the "old" ones on accident
-            end
+            Q̂_new = copy(funcvar[:Q̂])
 
-            Q̂_new = Q̂_calculation(stategrid, funcvar[:Q̂], endo[:μw], endo[:σw],
-                                  endo[:κw], endo[:rf], endo[:rg], endo[:rh], Q, θ[:λ];
-                                  N_GH = N_GH, tol = Q̂_tol, max_it = Q̂_max_it, Q̂_interp_method = Q̂_interpolant, dt = dt,
-                                  verbose = verbose)
+            Q̂_calculation!(stategrid, Q̂_new, endo[:μw], endo[:σw],
+                          endo[:κw], endo[:rf], endo[:rg], endo[:rh], Q, θ[:λ];
+                          N_GH = N_GH, tol = Q̂_tol, max_it = Q̂_max_it, Q̂_interp_method = Q̂_interpolant, dt = dt,
+                          verbose = verbose)
             # In the original code, a vector of zeros is used as the initial guess
 #=            Q̂_new = Q̂_calculation(stategrid, zeros(eltype(m), length(stategrid)), endo[:μw], endo[:σw],
                                   endo[:κw], endo[:rf], endo[:rg], endo[:rh], Q, θ[:λ];
@@ -468,15 +465,15 @@ end
 
 """
 ```
-Q̂_calculation(stategrid::StateGrid, Q̂::AbstractVector{S}, μw::AbstractVector{S}, σw::AbstractVector{S},
+Q̂_calculation!(stategrid::StateGrid, Q̂::AbstractVector{S}, μw::AbstractVector{S}, σw::AbstractVector{S},
     κw::AbstractVector{S}, rf::AbstractVector{S}, rg::AbstractVector{S}, rh::AbstractVector{S}, Q::S, λ::S;
     N_GH::Int = 10, tol::S = 1e-5, max_it::Int = 1000, Q̂_interp_method = Gridded(Linear()),
     testing::Bool = false, verbose::Symbol = :none) where {S <: Real}
 ```
 
-calculates Q̂ using Gauss-Hermite quadrature.
+calculates Q̂ using Gauss-Hermite quadrature. This function modifies Q̂ in place.
 """
-function Q̂_calculation(stategrid::StateGrid, Q̂::AbstractVector{S}, μw::AbstractVector{S}, σw::AbstractVector{S},
+function Q̂_calculation!(stategrid::StateGrid, Q̂::AbstractVector{S}, μw::AbstractVector{S}, σw::AbstractVector{S},
                        κw::AbstractVector{S}, rf::AbstractVector{S}, rg::AbstractVector{S}, rh::AbstractVector{S}, Q::S, λ::S;
                        N_GH::Int = 10, tol::S = 1e-5, max_it::Int = 1000,
                        Q̂_interp_method::Interpolations.InterpolationType = Gridded(Linear()), dt::S = 1. / 12.,

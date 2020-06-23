@@ -120,15 +120,15 @@ end
 
     if time_functions
         BenchmarkTools.@btime begin
-            Q̂_calculation(stategrid, zeros(length(stategrid)), vec(Q̂_input["muw_vec"]), vec(Q̂_input["sigmaw_vec"]),
-                          vec(Q̂_input["kappaw_vec"]), vec(Q̂_input["rf_vec"]), vec(Q̂_input["rg_vec"]), vec(Q̂_input["rh_vec"]),
-                          Q̂_input["Qval"], Q̂_input["lambda"])
+            Q̂_calculation!(stategrid, zeros(length(stategrid)), vec(Q̂_input["muw_vec"]), vec(Q̂_input["sigmaw_vec"]),
+                           vec(Q̂_input["kappaw_vec"]), vec(Q̂_input["rf_vec"]), vec(Q̂_input["rg_vec"]), vec(Q̂_input["rh_vec"]),
+                           Q̂_input["Qval"], Q̂_input["lambda"])
         end
     end
 
-    my_Q̂ = Q̂_calculation(stategrid, zeros(length(stategrid)), vec(Q̂_input["muw_vec"]), vec(Q̂_input["sigmaw_vec"]),
-                         vec(Q̂_input["kappaw_vec"]), vec(Q̂_input["rf_vec"]), vec(Q̂_input["rg_vec"]), vec(Q̂_input["rh_vec"]),
-                         Q̂_input["Qval"], Q̂_input["lambda"])
+    my_Q̂ = Q̂_calculation!(stategrid, zeros(length(stategrid)), vec(Q̂_input["muw_vec"]), vec(Q̂_input["sigmaw_vec"]),
+                          vec(Q̂_input["kappaw_vec"]), vec(Q̂_input["rf_vec"]), vec(Q̂_input["rg_vec"]), vec(Q̂_input["rh_vec"]),
+                          Q̂_input["Qval"], Q̂_input["lambda"])
     @test maximum(abs.(my_Q̂ - vec(Q̂_out["hat_Q_vec"]))) < 5e-4
 end
 
