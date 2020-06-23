@@ -117,7 +117,7 @@ function init_model_indices!(m::Li2020)
     derivatives = keys(get_derivatives(m))
 
     # Endogenous variables
-    endogenous_variables = collect([:ψ, :xK, :yK, :yg, :σp, :σ, :σh, :σw, :μR_rd, :rd_rg, :μb_μh, :μw, :μp, :μK, :μR, :rd, :rg, :rd_rf,
+    endogenous_variables = collect([:ψ, :xK, :yK, :yg, :σp, :σ, :σh, :σw, :μR_rd, :rd_rg, :rd_rg_H, :μb_μh, :μw, :μp, :μK, :μR, :rd, :rg, :rd_rf,
                                     :μb, :μh, :invst, :lvg, :κp, :κb, :κd, :κh, :κfs, :firesale_jump, :κw, :liq_prem, :bank_liq_frac,
                                     :δ_x, :indic, :rf, :rh, :K_growth, :κK])
 

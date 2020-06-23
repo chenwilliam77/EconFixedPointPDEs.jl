@@ -395,7 +395,7 @@ some quantities don't need to be calculated and have been omitted for speed purp
 function prepare_Q̂!(stategrid::StateGrid, funcvar::OrderedDict{Symbol, Vector{S}}, derivs::OrderedDict{Symbol, Vector{S}},
                     endo::OrderedDict{Symbol, Vector{S}}, θ::NamedTuple, f_μK::Function, Φ::Function, yg_tol::S, firesale_bound::S,
                     firesale_interpolant::Interpolations.InterpolationType, Q::S) where {S <: Real}
-    @unpack ψ, xK, yK, yg, σp, σ, σh, σw, μR_rd, rd_rg, μb_μh, μw, μp, μK, μR, rd, rg, μb, μh, κp, invst, κb, κd, κh, κfs, firesale_jump, κw, δ_x, indic, rf, rh, rd_rf, μp, μK, μR = endo
+    @unpack ψ, xK, yK, yg, σp, σ, σh, σw, μR_rd, rd_rg, rd_rg_H, μb_μh, μw, μp, μK, μR, rd, rg, μb, μh, κp, invst, κb, κd, κh, κfs, firesale_jump, κw, δ_x, indic, rf, rh, rd_rf, μp, μK, μR = endo
     @unpack p, xg, Q̂ = funcvar
     ∂p_∂w = derivs[:∂p_∂w]
     ∂²p∂w² = derivs[:∂²p_∂w²]
@@ -444,9 +444,9 @@ function prepare_Q̂!(stategrid::StateGrid, funcvar::OrderedDict{Symbol, Vector{
     # Main drifts and interest rates
     μR_rd   .= (θ[:σK] .+ σp) .^ 2 .* xK - θ[:AH] ./ p + (θ[:λ] * (1. - θ[:θ])) .*
         (κp + indic .* (θ[:α] / (1 - θ[:α]) * θ[:β])) ./ (1. .- firesale_jump) +
-         (xK .+ θ[:ϵ] .< 1.) .* (θ[:λ] * θ[:θ]) ./ (1. .- xK)
+         ((xK .+ θ[:ϵ]) .< 1.) .* (θ[:λ] * θ[:θ]) ./ (1. .- xK)
     rd_rg   .= (θ[:λ] * (1 - θ[:θ]) * θ[:α] / (1 - θ[:α]) * (1 - θ[:β])) .* indic ./ (1. .- firesale_jump)
-    rd_rg_H  = θ[:λ] .* κd ./ (1. .- yK .* κp .- (1. .- yK .- yg) .* κd .+ κfs)
+    rd_rg_H .= θ[:λ] .* κd ./ (1. .- yK .* κp .- (1. .- yK .- yg) .* κd .+ κfs)
     index_xK = xK .<= 1. # In this scenario, the rd-rg difference must be solved from hh's FOC
     rd_rg[index_xK] = rd_rg_H[index_xK]
     μb_μh   .= (xK - yK) .* μR_rd + (xK .* θ[:AH] - yK .* θ[:AL]) ./ p - (xg - yg) .* rd_rg

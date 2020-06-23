@@ -13,14 +13,14 @@ augment_variables_nojump!(m::Li2020, stategrid::StateGrid, funcvar::OrderedDict{
 calculates derivatives and additional endogenous variables that can be computed
 after solving the equilibrium system of functional equations.
 """
-function augment_variables(m::Li2020, stategrid::StateGrid, funcvar::OrderedDict{Symbol, AbstractVector{S}},
-                           derivs::OrderedDict{Symbol, AbstractVector{S}},
-                           endo::OrderedDict{Symbol, AbstractVector{S}}) where {S <: Real}
+function augment_variables!(m::Li2020, stategrid::StateGrid, funcvar::OrderedDict{Symbol, Vector{S}},
+                            derivs::OrderedDict{Symbol, Vector{S}},
+                            endo::OrderedDict{Symbol, Vector{S}}) where {S <: Real}
 
     # Unpack equilibrium endogenous variables and stategrid
-    @unpack ψ, xK, yK, yg, σp, σ, σh, σw, μR_rd, rd_rg, μb_μh, μw, μp, μK, μR, rd, rd_rf, rg, μb, μh, invst, lvg, κp, κb, κd, κh, κfs, firesale_jump, κw, liq_prem, bank_liq_frac, δ_x, indic, rf, rh, K_growth, κK = endo
+    @unpack ψ, xK, yK, yg, σp, σ, σh, σw, μR_rd, rd_rg, rd_rg_H, μb_μh, μw, μp, μK, μR, rd, rd_rf, rg, μb, μh, invst, lvg, κp, κb, κd, κh, κfs, firesale_jump, κw, liq_prem, bank_liq_frac, δ_x, indic, rf, rh, K_growth, κK = endo
     @unpack p, xg, Q̂     = funcvar
-    @unpack ∂p∂w, ∂²p∂w² = derivs
+    @unpack ∂p_∂w, ∂²p_∂w² = derivs
     w    = stategrid[:w]
     θ    = parameters_to_named_tuple(get_parameters(m))
     f_μK = get_setting(m, :μK)
@@ -30,10 +30,10 @@ function augment_variables(m::Li2020, stategrid::StateGrid, funcvar::OrderedDict
     firesale_interpolant = get_setting(m, :firesale_interpolant)
 
     # Calculate various quantities
-    ∂p∂w   .= differentiate(w, p)    # as Li (2020) does it
-    ∂²p∂w² .= differentiate(w, ∂p∂w) # as Li (2020) does it
-    invst  .= map(x -> Φ(x, θ[:χ], θ[:δ]), p)
-    ψ      .= (invst .+ θ[:ρ] .* (p + Q̂) .- θ[:AL]) ./ (θ[:AH] - θ[:AL])
+    ∂p_∂w   .= differentiate(w, p)    # as Li (2020) does it
+    ∂²p_∂w² .= differentiate(w, ∂p_∂w) # as Li (2020) does it
+    invst   .= map(x -> Φ(x, θ[:χ], θ[:δ]), p)
+    ψ       .= (invst .+ θ[:ρ] .* (p + Q̂) .- θ[:AL]) ./ (θ[:AH] - θ[:AL])
     ψ[ψ .> 1.] .= 1.
 
     # Portfolio choices
@@ -46,12 +46,12 @@ function augment_variables(m::Li2020, stategrid::StateGrid, funcvar::OrderedDict
     Q     = get_setting(m, :avg_gdp) * get_setting(m, :gov_bond_gdp_level)
     yg   .= (Q ./ (p + Q̂) - w .* xg) ./ (1. .- w)
     yg[end] = yg[end - 1]
-    yg[yg .< yg_tol] = yg_tol # avoid yg < 0
+    yg[yg .< yg_tol] .= yg_tol # avoid yg < 0
     δ_x   .= max.(θ[:β] .* (xK + xg .- 1.) - xg, 0.)
     indic .= δ_x .> 0.
 
     # Volatilities
-    σp .= ∂p∂w .* w .* (1. .- w) .* (xK - yK) ./ (1. .- ∂p∂w .* w .* (1. .- w) .* (xK - yK)) .* θ[:σK]
+    σp .= ∂p_∂w .* w .* (1. .- w) .* (xK - yK) ./ (1. .- ∂p_∂w .* w .* (1. .- w) .* (xK - yK)) .* θ[:σK]
     σp[end] = 0. # no volatility at the end
     σ  .= xK .* (θ[:σK] .+ σp)
     σh .= yK .* (θ[:σK] .+ σp)
@@ -59,9 +59,8 @@ function augment_variables(m::Li2020, stategrid::StateGrid, funcvar::OrderedDict
 
     # Deal with post jump issues
     firesale_jump .= xK .* κp + (θ[:α] / (1 - θ[:α])) .* δ_x
-    firesale_ind  = firesale_jump .< firesale_bound
-    firesale_spl  = interpolate(w[firesale_ind], firesale_jump[ind], firesale_interpolant)
-    extrapolate(firesale_spl, Line()) # linear extrapolation
+    firesale_ind   = firesale_jump .< firesale_bound
+    firesale_spl   = extrapolate(interpolate((w[firesale_ind], ), firesale_jump[firesale_ind], firesale_interpolant), Line())
     firesale_jump .= firesale_spl(w)
 
     # Jumps
@@ -74,17 +73,17 @@ function augment_variables(m::Li2020, stategrid::StateGrid, funcvar::OrderedDict
 
     # Generate liquidity premium and price of risks
     liq_prem .= indic .* θ[:λ] .* ((1 - θ[:π]) * (1 - θ[:θ]) * θ[:α] / (1 - θ[:α])) ./ (1. .- firesale_jump)
-    index    = max(argmax(li_prem) - 6., 1.)
-    fit      = SLM(w[index:end], liq_prem[index:end], decreasing = true, right_value = 0., knots = 4)
-    liq_prem .= vcat(liq_prem_vec[1:index - 1], eval(fit, w[index:end]))
+    index     = convert(Int, max(argmax(liq_prem) - 6, 1))
+    fit       = SLM(w[index:end], liq_prem[index:end], decreasing = true, right_value = 0., knots = 4)
+    liq_prem .= vcat(liq_prem[1:index - 1], eval(fit, w[index:end]))
 
     # Liquidity holding across states
     bank_liq_frac .= xg .* w ./ (Q ./ (p + Q̂))
 
     # Main drifts and interest rates
-    μR_rd   .= (θ[:σK] + σp) .^ 2 .* xK - θ[:AH] ./ p + (θ[:λ] * (1 - θ[:θ])) .*
+    μR_rd   .= (θ[:σK] .+ σp) .^ 2 .* xK - θ[:AH] ./ p + (θ[:λ] * (1 - θ[:θ])) .*
         (κp + indic .* (θ[:α] / (1 - θ[:α]) * θ[:β])) ./ (1. .- firesale_jump) +
-         (xK .+ θ[:ϵ] .< 1.) .* (θ[:λ] * θ[:θ]) ./ (1. .- xK)
+         ((xK .+ θ[:ϵ]) .< 1.) .* (θ[:λ] * θ[:θ]) ./ (1. .- xK)
     rd_rg   .= (θ[:λ] * (1 - θ[:θ]) * θ[:α] / (1 - θ[:α]) * (1 - θ[:β])) .* indic ./ (1. .- firesale_jump)
     rd_rg_H .= θ[:λ] .* κd ./ (1. .- yK .* κp - (1. .- yK .- yg) .* κd + κfs)
     index_xK = xK .<= 1. # In this scenario, the rd-rg difference must be solved from hh's FOC
@@ -92,13 +91,13 @@ function augment_variables(m::Li2020, stategrid::StateGrid, funcvar::OrderedDict
     μb_μh   .= (xK - yK) .* μR_rd + (xK .* θ[:AH] - yK .* θ[:AL]) ./ p - (xg - yg) .* rd_rg
     μw      .= (1. .- w) .* (μb_μh + σh .^ 2 - σ .* σh - w .* (σ - σh) .^ 2 -
                        θ[:η] ./ (1. .- w))
-    μw[end]  = μw[end - 1] # drift should be similar at the end
-    μp      .= ∂p∂w .* w .* μw + (1. / 2.) .* ∂²p∂w² .* (w .* (1. .- w) .* (σ - σh)) .^ 2
-    μp[end]  = μp[end - 1] # drift should be similar at the end
-    μK      .= map(x -> f_μK(x, θ[:χ], θ[:δ]), p)
-    μR      .= μp .- θ[:δ] + μK + θ[:σK] .* σp - invst ./ p
-    Kgrowth .= μK .- θ[:δ]
-    κK      .= θ[:θ] .* ψ
+    μw[end]   = μw[end - 1] # drift should be similar at the end
+    μp       .= ∂p_∂w .* w .* μw + (1. / 2.) .* ∂²p_∂w² .* (w .* (1. .- w) .* (σ - σh)) .^ 2
+    μp[end]   = μp[end - 1] # drift should be similar at the end
+    μK       .= map(x -> f_μK(x, θ[:χ], θ[:δ]), p)
+    μR       .= μp .- θ[:δ] + μK + θ[:σK] .* σp - invst ./ p
+    K_growth .= μK .- θ[:δ]
+    κK       .= θ[:θ] .* ψ
 
     # Other interest rates
     rd    .= μR - μR_rd
@@ -129,8 +128,8 @@ function augment_variables_nojump!(m::Li2020, stategrid::StateGrid, ode_f::Funct
     # Unpack equilibrium endogenous variables and stategrid
     p    = funcvar[:p]
     xg   = funcvar[:xg]
-    derivs[:∂p∂w] = similar(p)
-    ∂p∂w = derivs[:∂p∂w]
+    derivs[:∂p_∂w] = similar(p)
+    ∂p_∂w = derivs[:∂p_∂w]
     w    = stategrid[:w]
     @unpack ψ, xK, yK, yg, σp, σ, σh, μR_rd, μb_μh, μw = endo
     Q = get_setting(m, :avg_gdp) * get_setting(m, :gov_bond_gdp_level)
@@ -140,8 +139,8 @@ function augment_variables_nojump!(m::Li2020, stategrid::StateGrid, ode_f::Funct
     p[1:i] .= odesol(stategrid[:w][1:i])
     p[(i + 1):end] .= boundary_conditions(m)[:p][2]
     θ = parameters_to_named_tuple(map(x -> get_parameters(m)[get_keys(m)[x]], get_setting(m, :nojump_parameters)))
-    ∂p∂w[1:i] .= map(j -> ode_f(p[j], θ, stategrid[:w][j]), 1:i)
-    ∂p∂w[(i + 1):end] .= 0.
+    ∂p_∂w[1:i] .= map(j -> ode_f(p[j], θ, stategrid[:w][j]), 1:i)
+    ∂p_∂w[(i + 1):end] .= 0.
 
     # Solve for values not calculated during the calculation of equilibrium
     Φ = get_setting(m, :Φ)
@@ -154,36 +153,36 @@ function augment_variables_nojump!(m::Li2020, stategrid::StateGrid, ode_f::Funct
     ψ_is1 = (i + 1):length(w)
     ψ_no1 = 2:i
     σp[ψ_no1] .= sqrt.((θ[:AH] - θ[:AL]) ./ (p[ψ_no1] .* (xK[ψ_no1] - yK[ψ_no1]))) .- θ[:σK]
-    σp[ψ_is1] .= θ[:σK] .* ∂p∂w[ψ_is1] .* w[ψ_is1] .* (1. .- w[ψ_is1]) .*
-        (xK[ψ_is1] - yK[ψ_is1]) ./ (1. .- ∂p∂w[ψ_is1] .* w[ψ_is1] .* (1. .- w[ψ_is1]) .* (xK[ψ_is1] - yK[ψ_is1]))
+    σp[ψ_is1] .= θ[:σK] .* ∂p_∂w[ψ_is1] .* w[ψ_is1] .* (1. .- w[ψ_is1]) .*
+        (xK[ψ_is1] - yK[ψ_is1]) ./ (1. .- ∂p_∂w[ψ_is1] .* w[ψ_is1] .* (1. .- w[ψ_is1]) .* (xK[ψ_is1] - yK[ψ_is1]))
     σ  .= xK .* (θ[:σK] .+ σp)
     σh .= yK .* (θ[:σK] .+ σp)
 
     if 0. in w
-        ∂Φ       = get_setting(m, :∂Φ)
-        w0       = findfirst(w .== 0.)
-        p[w0]    = get_setting(m, :boundary_conditions)[:p][1]
-        d0       = (θ[:AH] - θ[:AL]) / (∂Φ(p[w0], θ[:χ]) + θ[:ρ]) * ((θ[:AH] - θ[:AL]) / (p[w0] * θ[:σK])^2 * p[w0] + 1)
-        ψ[w0]    = 0.
-        ∂p∂w[w0] = d0
-        xK[w0]   = 0.
-        yK[w0]   = 1.
-        yg[w0]   = Q[w0] / p[w0]
-        σp[w0]   = 0.
-        σ[w0]    = 0.
-        σh[w0]   = yK[w0] * θ[:σK]
+        ∂Φ        = get_setting(m, :∂Φ)
+        w0        = findfirst(w .== 0.)
+        p[w0 ]    = get_setting(m, :boundary_conditions)[:p][1]
+        d0        = (θ[:AH] - θ[:AL]) / (∂Φ(p[w0], θ[:χ]) + θ[:ρ]) * ((θ[:AH] - θ[:AL]) / (p[w0] * θ[:σK])^2 * p[w0] + 1)
+        ψ[w0]     = 0.
+        ∂p_∂w[w0] = d0
+        xK[w0]    = 0.
+        yK[w0]    = 1.
+        yg[w0]    = Q[w0] / p[w0]
+        σp[w0]    = 0.
+        σ[w0]     = 0.
+        σh[w0]    = yK[w0] * θ[:σK]
     end
 
     if 1. in w
-        wN       = findfirst(w .== 1.)
-        ∂p∂w[wN] = 0. # INTERPOLATE using solved price function somehow, maybe just linear interpolation, also maybe boundary condition
-        xK[wN]   = 1.
-        yK[wN]   = 0.
-        xg[wN]   = 0.
-        yg[wN]   = 1 / p[wN] * Q / (1 - w[wN - 1])
-        σp[wN]   = 0.
-        σ[wN]    = xK[wN] * θ[:σK]
-        σh[wN]   = 0.
+        wN        = findfirst(w .== 1.)
+        ∂p_∂w[wN] = 0.
+        xK[wN]    = 1.
+        yK[wN]    = 0.
+        xg[wN]    = 0.
+        yg[wN]    = 1 / p[wN] * Q / (1 - w[wN - 1])
+        σp[wN]    = 0.
+        σ[wN]     = xK[wN] * θ[:σK]
+        σh[wN]    = 0.
     end
 
     μR_rd  .= (θ[:σK] .+ σp) .^ 2 .* xK - θ[:AH] ./ p
@@ -212,8 +211,8 @@ function augment_variables_nojump!(m::Li2020, stategrid::StateGrid, funcvar::Ord
     Q̂  .= zero(eltype(m))
     xg .= zero(eltype(m))
     derivs[:∂p_∂w] = similar(p)
-    ∂p∂w   = derivs[:∂p_∂w]
-    ∂²p∂w² = derivs[:∂²p_∂w²]
+    ∂p_∂w   = derivs[:∂p_∂w]
+    ∂²p_∂w² = derivs[:∂²p_∂w²]
     @unpack ψ, xK, yK, yg, σp, σ, σh, μR_rd, rd_rg, μb_μh, μw, μp, μK, μR, rd, rg, μb, μh = endo
     w      = stategrid[:w]
     θ = parameters_to_named_tuple(map(x -> get_parameters(m)[get_keys(m)[x]], get_setting(m, :nojump_parameters)))
@@ -223,8 +222,8 @@ function augment_variables_nojump!(m::Li2020, stategrid::StateGrid, funcvar::Ord
     i = findfirst(w .>= odesol.t[end])
     p[1:i] .= odesol(w[1:i])
     p[(i + 1):end] .= boundary_conditions(m)[:p][2]
-    ∂p∂w   .= differentiate(w, p)    # as Li (2020) does it
-    ∂p²p∂w² .= differentiate(w, ∂p∂w) # as Li (2020) does it
+    ∂p_∂w   .= differentiate(w, p)    # as Li (2020) does it
+    ∂p²_∂w² .= differentiate(w, ∂p_∂w) # as Li (2020) does it
 
     # Solve for values not calculated during the calculation of equilibrium
     Φ = get_setting(m, :Φ)
@@ -234,7 +233,7 @@ function augment_variables_nojump!(m::Li2020, stategrid::StateGrid, funcvar::Ord
     yK .= (1. .- ψ) ./ (1. .- w)
     yg .= fill(get_setting(m, :avg_gdp) * get_setting(m, :gov_bond_gdp_level), length(w)) ./ p ./ (1. .- w)
     yg[end] = yg[end - 1]
-    σp .= ∂p∂w .* w .* (1. .- w) .* (xK - yK) ./ (1. .- ∂w .* w .* (1. .- w) .* (xK - yK)) .* θ[:σK]
+    σp .= ∂p_∂w .* w .* (1. .- w) .* (xK - yK) ./ (1. .- ∂w .* w .* (1. .- w) .* (xK - yK)) .* θ[:σK]
     σp[end] = 0. # no volatility at the end
     σ  .= xK .* (θ[:σK] .+ σp)
     σh .= yK .* (θ[:σK] .+ σp)
@@ -247,7 +246,7 @@ function augment_variables_nojump!(m::Li2020, stategrid::StateGrid, funcvar::Ord
     μw     .= (1. .- w) .* (μb_μh + σh .^ 2 - σ .* σh - w .* (σ - σh) .^ 2 -
                        θ[:η] ./ (1. .- w))
     μw[end] = μw[end - 1] # drift should be similar at the end
-    μp     .= ∂p∂w .* w .* μw + (1. / 2.) .* ∂p²∂w² .* (w .* (1. .- w) .* (σ - σh)) .^ 2
+    μp     .= ∂p_∂w .* w .* μw + (1. / 2.) .* ∂p²_∂w² .* (w .* (1. .- w) .* (σ - σh)) .^ 2
     μp[end] = μp[end - 1] # drift should be similar at the end
     μK     .= map(x -> f_μK(x, θ[:χ], θ[:δ]), p)
     μR     .= μp .- θ[:δ] + μK + θ[:σK] .* σp - invst ./ p
