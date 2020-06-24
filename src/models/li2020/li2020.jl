@@ -20,7 +20,7 @@ Schorfheide.
 
 The following fields are dictionaries that map human-readable names to indices.
 
-* `stategrid::OrderedDict{Symbol,Int}`: Maps each state variable to its dimension on a Cartesian grid
+* `state_variables::OrderedDict{Symbol,Int}`: Maps each state variable to its dimension on a Cartesian grid
 
 * `endogenous_variables::OrderedDict{Symbol,Int}`: Maps endogenous variables
     calculated during the solution of functional equations to an index
@@ -71,7 +71,7 @@ mutable struct Li2020{T} <: AbstractNLCTFPModel{T}
     parameters::ParameterVector{T}                         # vector of all time-invariant model parameters
     keys::OrderedDict{Symbol,Int}                          # human-readable names for all the model
                                                            # parameters and steady-states
-    stategrid::OrderedDict{Symbol,Int}                     # dimension number of state variable
+    state_variables::OrderedDict{Symbol,Int}                     # dimension number of state variable
 
     functional_variables::OrderedDict{Symbol,Int}
     derivatives::OrderedDict{Symbol,Int}
@@ -103,8 +103,8 @@ Description:
 Initializes indices for all of `m`'s states, shocks, and observables.
 """
 function init_model_indices!(m::Li2020)
-    # Stategrid
-    stategrid = collect([:w])
+    # State_Variables
+    state_variables = collect([:w])
 
     # Exogenous shocks
     exogenous_shocks = collect([:K_sh, :N_sh]) # capital shock K, liquidity shock N
@@ -113,7 +113,7 @@ function init_model_indices!(m::Li2020)
     functional_variables = collect([:p, :Q̂, :xg])
 
     # Derivatives of variables
-    init_derivatives!(m, Dict{Symbol, Vector{Int}}(:p => standard_derivs(1)), stategrid)
+    init_derivatives!(m, Dict{Symbol, Vector{Int}}(:p => standard_derivs(1)), state_variables)
     derivatives = keys(get_derivatives(m))
 
     # Endogenous variables
@@ -127,7 +127,7 @@ function init_model_indices!(m::Li2020)
     # Pseudo-observables
     pseudo_observables = keys(m.pseudo_observable_mappings)
 
-    for (i,k) in enumerate(stategrid);              m.stategrid[k]            = i end
+    for (i,k) in enumerate(state_variables);        m.state_variables[k]      = i end
     for (i,k) in enumerate(exogenous_shocks);       m.exogenous_shocks[k]     = i end
     for (i,k) in enumerate(endogenous_variables);   m.endogenous_variables[k] = i end
     for (i,k) in enumerate(functional_variables);   m.functional_variables[k] = i end
@@ -264,6 +264,10 @@ function model_settings!(m::Li2020)
     m <= Setting(:ode_integrator, DP5(), "Numerical ODE integrator for no-jump solution") # DP5 is Matlab's ode45
 
     # Numerical settings for functional iteration
+    m <= Setting(:tol, 1e-4, "Tolerance for functional iteration")
+    m <= Setting(:learning_rate, 0.4, "Learning rate for the update of functional variables after each loop")
+    m <= Setting(:max_iter, 12, "Maximum number of loops during functional iteration")
+    m <= Setting(:error_method, :total_error, "Method for calculating error at the end of each loop during functional iteration")
     m <= Setting(:v₀, 3e-8, "Parameter for damping function")
     m <= Setting(:damping_function, x -> get_setting(m, :v₀) ./ x, "Dampling function to avoid corners")
     m <= Setting(:p₀_perturb, 1e-14, "Perturbation of boundary condition for q at w = 0")
