@@ -36,4 +36,9 @@ end
     @test calculate_func_error(funcvar1, funcvar2, :L²) == sum(map(x -> sum((funcvar1[x] - funcvar2[x]) .^ 2), [:a, :b]))
     @test calculate_func_error(funcvar1, funcvar2, :L2) == sum(map(x -> sum((funcvar1[x] - funcvar2[x]) .^ 2), [:a, :b]))
     @test calculate_func_error(funcvar1, funcvar2, :squared_error) == sum(map(x -> sum((funcvar1[x] - funcvar2[x]) .^ 2), [:a, :b]))
+
+    @test calculate_func_error(funcvar1, funcvar2, :total_error; vars = [:a]) == sum(map(x -> sum(abs.(funcvar1[x] - funcvar2[x])), [:a]))
+    @test calculate_func_error(funcvar1, funcvar2, :L∞; vars = [:a]) ==
+        maximum(map(x -> maximum(abs.(funcvar1[x] - funcvar2[x])), [:a]))
+    @test calculate_func_error(funcvar1, funcvar2, :L²; vars = [:a]) == sum(map(x -> sum((funcvar1[x] - funcvar2[x]) .^ 2), [:a]))
 end
