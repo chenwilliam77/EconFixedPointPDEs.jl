@@ -71,7 +71,7 @@ mutable struct Li2020{T} <: AbstractNLCTFPModel{T}
     parameters::ParameterVector{T}                         # vector of all time-invariant model parameters
     keys::OrderedDict{Symbol,Int}                          # human-readable names for all the model
                                                            # parameters and steady-states
-    state_variables::OrderedDict{Symbol,Int}                     # dimension number of state variable
+    state_variables::OrderedDict{Symbol,Int}               # dimension number of state variable
 
     functional_variables::OrderedDict{Symbol,Int}
     derivatives::OrderedDict{Symbol,Int}

@@ -9,7 +9,7 @@ end
 m = Li2020("ss0")
 
 @testset "Fields of Li2020" begin
-    for req_field in [:parameters, :keys, :stategrid, :functional_variables, :endogenous_variables, :exogenous_shocks,
+    for req_field in [:parameters, :keys, :state_variables, :functional_variables, :endogenous_variables, :exogenous_shocks,
                       :observables, :pseudo_observables, :spec, :subspec, :settings,
                       :test_settings, :rng, :testing, :observable_mappings, :pseudo_observable_mappings]
         @test hasfield(Li2020{Float64}, req_field)
@@ -17,7 +17,7 @@ m = Li2020("ss0")
 end
 
 @testset "Variables, Shocks, Parameters, and Settings" begin
-    @test haskey(get_stategrid(m), :w)
+    @test haskey(get_state_variables(m), :w)
 
     for k in [:p]
         @test haskey(get_functional_variables(m), k)
