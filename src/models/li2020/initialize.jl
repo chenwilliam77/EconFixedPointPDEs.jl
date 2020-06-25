@@ -24,7 +24,7 @@ function initialize!(m::Li2020)
     Q = get_setting(m, :gov_bond_gdp_level) * get_setting(m, :avg_gdp)
     funcvar[:xg]     .= Q ./ (2. .* stategrid[:w] .* funcvar[:p])
     funcvar[:xg][1]   = 2. * funcvar[:xg][2]
-    funcvar[:xg][end] = θ[:ϵ]
+    funcvar[:xg][end] = m[:ϵ]
     funcvar[:Q̂]      .= fill(.05 * Q, length(stategrid))
 
     # Some settings for functional iteration

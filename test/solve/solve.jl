@@ -7,6 +7,7 @@ include(joinpath(dirname(@__FILE__), "../../src/includeall.jl"))
 # Initialize
 m = Li2020()
 stategrid, funcvar, derivs, endo = initialize!(m)
+funcvar_dict = get_functional_variables(m)
 func_iter = eqcond(m)
 θ = parameters_to_named_tuple(get_parameters(m))
 
@@ -54,7 +55,7 @@ for iter in 1:max_iter
     if verbose == :high
         for k in error_vars
             indiv_funcvar_err = calculate_func_error(proposal_funcvar[k], funcvar[k], error_method)
-            indiv_space = " " ^ (27 - length(string(k)) + 1)
+            indiv_space = " " ^ (28 - length(string(k)) + 1)
             println("Error for $(k):" * indiv_space * string(indiv_funcvar_err))
         end
     else

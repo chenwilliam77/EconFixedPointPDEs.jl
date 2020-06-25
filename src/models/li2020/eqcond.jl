@@ -55,15 +55,13 @@ function eqcond(m::Li2020)
         # Initialize storages for these values b/c they are separately stored at first due to tempered updating
         p_new  = similar(p)
         xg_new = similar(xg)
-        κp_new = similar(κp)
+        κp_new = κp
 
         # Add boundaries
         p_new[1]    = p[1]
         p_new[end]  = p[end]
         xg_new[1]   = xg[1]
         xg_new[end] = xg[end]
-        κp_new[1]   = κp[1]
-        κp_new[end] = 0.
 
         ## Step 1: Update for a new round
         p_fitted = extrapolate(interpolate((stategrid[:w], ), p, p_interpolant), Line())

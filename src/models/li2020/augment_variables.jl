@@ -70,6 +70,7 @@ function augment_variables!(m::Li2020, stategrid::StateGrid, funcvar::OrderedDic
     κfs[end] = 0.
     κh  .= yK .* κp + (1. .- yK .- yg) .* κd - κfs
     κw  .= 1. .- (1. .- κb) ./ (1. .- κh .- w .* (κb - κh))
+    endo[:κp][end] = 0. # Enforce zero at the end
 
     # Generate liquidity premium and price of risks
     liq_prem .= indic .* θ[:λ] .* ((1 - θ[:π]) * (1 - θ[:θ]) * θ[:α] / (1 - θ[:α])) ./ (1. .- firesale_jump)
