@@ -120,13 +120,18 @@ function eqcond(m::Li2020)
         if !all(solved_xg) # if all(solved_xg), then linear interpolation will just return the same values as they currently are
             # Interpolate other quantities using a 1D cubic Spline
             xg_new_spl = extrapolate(interpolate((stategrid[:w][solved_xg], ), xg_new[solved_xg], xg_interpolant), Line())
-            κp_new_spl = extrapolate(interpolate((stategrid[:w][solved_xg], ), xg_new[solved_xg], κp_interpolant), Line())
 
-            # An alternative: Dierckx
             # xg_new_spl = Spline1D(stategrid[:w][solved_xg], xg_new[solved_xg], bc = "extrapolate")
-            # κp_new_spl = Spline1D(stategrid[:w][solved_κp], κp_new[solved_κp], bc = "extrapolate")
 
             xg_new[1:end - 1] .= xg_new_spl(stategrid[:w][1:end - 1])
+        end
+
+        if !all(solved_κp)
+            κp_new_spl = extrapolate(interpolate((stategrid[:w][solved_κp], ), κp_new[solved_κp], κp_interpolant), Line())
+
+            # An alternative: Dierckx
+            # κp_new_spl = Spline1D(stategrid[:w][solved_κp], κp_new[solved_κp], bc = "extrapolate")
+
             κp_new[1:end - 1] .= κp_new_spl(stategrid[:w][1:end - 1])
         end
 
@@ -154,16 +159,18 @@ function eqcond(m::Li2020)
                                   verbose = verbose)=#
 
             if !isempty(individual_convergence)
-                if sum(abs.(funcvar[:Q̂] - Q̂_old)) < individual_convergence[:Q̂][2]
+                if sum(abs.(Q̂_new - funcvar[:Q̂])) < individual_convergence[:Q̂][2]
                     individual_convergence[:Q̂][1] = 1.
                     println(verbose, :high, "Q̂ has converged!")
                 end
             end
+        else
+            Q̂_new = funcvar[:Q̂]
         end
 
         println(verbose, :high, "")
 
-        return p_new, xg_new, Q̂_new
+        return p_new, Q̂_new, xg_new # must be ordered in the same order as get_functional_variables(m)
     end
 end
 

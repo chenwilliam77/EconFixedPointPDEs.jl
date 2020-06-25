@@ -17,13 +17,15 @@ function initialize!(m::Li2020)
                 right_value = p₁, increasing = true, knots = floor(Int, ψ_is_1 / 4))
     funcvar[:p][1:ψ_is_1] .= eval(p_SLM, stategrid[:w][1:ψ_is_1])
     p_SLM = SLM(stategrid[:w], funcvar[:p], concave_down = true, increasing = true, left_value = p₀,
-                right_value = p₁, knots = floor(Int, length(stategrid) / 8))
+                right_value = p₁, knots = floor(Int, ψ_is_1 / 8))
     funcvar[:p] = eval(p_SLM, stategrid[:w])
 
     # Guess for xg and Q̂
     Q = get_setting(m, :gov_bond_gdp_level) * get_setting(m, :avg_gdp)
-    funcvar[:xg] .= Q ./ (2. .* stategrid[:w] .* funcvar[:p])
-    funcvar[:Q̂]  .= fill(.05 * Q, length(stategrid))
+    funcvar[:xg]     .= Q ./ (2. .* stategrid[:w] .* funcvar[:p])
+    funcvar[:xg][1]   = 2. * funcvar[:xg][2]
+    funcvar[:xg][end] = θ[:ϵ]
+    funcvar[:Q̂]      .= fill(.05 * Q, length(stategrid))
 
     # Some settings for functional iteration
     m <= Setting(:κp_grid, vcat(0., exp.(range(log(1e-3), stop = log((p₁ - p₀) / p₁), length = 19))))

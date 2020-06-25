@@ -256,7 +256,6 @@ function model_settings!(m::Li2020)
     # Numerical settings for no jump equilibrium
     m <= Setting(:boundary_conditions, OrderedDict{Symbol, Vector{Float64}}(:p => [0.; 0.]),
                  "Boundary conditions for differential equations.")
-    m <= Setting(:max_iterations, 12, "Maximum number of fixed point iterations")
     m <= Setting(:ode_reltol, 1e-4, "Relative tolerance for ODE integration")
     m <= Setting(:ode_abstol, 1e-12, "Absolute tolerance for ODE integration")
     m <= Setting(:essentially_one, 0.999,
@@ -266,7 +265,7 @@ function model_settings!(m::Li2020)
     # Numerical settings for functional iteration
     m <= Setting(:tol, 1e-4, "Tolerance for functional iteration")
     m <= Setting(:learning_rate, 0.4, "Learning rate for the update of functional variables after each loop")
-    m <= Setting(:max_iter, 12, "Maximum number of loops during functional iteration")
+    m <= Setting(:max_iter, 40, "Maximum number of loops during functional iteration")
     m <= Setting(:error_method, :total_error, "Method for calculating error at the end of each loop during functional iteration")
     m <= Setting(:v₀, 3e-8, "Parameter for damping function")
     m <= Setting(:damping_function, x -> get_setting(m, :v₀) ./ x, "Dampling function to avoid corners")

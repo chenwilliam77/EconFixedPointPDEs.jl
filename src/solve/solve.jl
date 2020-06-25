@@ -10,7 +10,9 @@ function solve(m::AbstractNLCTFPModel, init_guess::OrderedDict = OrderedDict{Sym
                nojump::Bool = false, nojump_method::Symbol = :ode, update_method::Symbol = :average,
                init_slm_coefs::OrderedDict = OrderedDict{Symbol, Vector{Float64}}(),
                individual_convergence::OrderedDict{Symbol, Vector{Float64}} = OrderedDict{Symbol, Vector{Float64}}(),
-               error_calc::Symbol = :total_error, type_checks::Bool = true, return_sol::Bool = false, verbose::Symbol = :none)
+               error_calc::Symbol = :total_error, type_checks::Bool = true, return_sol::Bool = false, verbose::Symbol = :none,
+               vars_for_error::Vector{Symbol} = Vector{Symbol}(undef, 0),
+               has_verbose::Bool = true)
 
     if nojump
         return solve_nojump(m; method = nojump_method, return_sol = return_sol, verbose = verbose)
@@ -18,9 +20,9 @@ function solve(m::AbstractNLCTFPModel, init_guess::OrderedDict = OrderedDict{Sym
         @assert !isempty(init_guess) "An initial guess for functional variables must be passed as the second argument to solve."
 
         ## Construct functional iteration loop
+        stategrid, funcvar, derivs, endo = initialize!(m)
         func_iter = eqcond(m)
         funcvar_dict = get_functional_variables(m)
-        stategrid, funcvar, derivs, endo = initialize!(m)
         θ = parameters_to_named_tuple(get_parameters(m))
 
         if type_checks
@@ -31,9 +33,10 @@ function solve(m::AbstractNLCTFPModel, init_guess::OrderedDict = OrderedDict{Sym
         end
 
         # Get settings for the loop
-        max_iter    = get_setting(m, :max_iter)        # maximum number of functional loops
-        func_tol    = get_setting(m, :tol)             # convergence tolerance
-        func_errors = Vector{Float64}(undef, max_iter) # track error for each iteration
+        max_iter     = get_setting(m, :max_iter)        # maximum number of functional loops
+        func_tol     = get_setting(m, :tol)             # convergence tolerance
+        error_method = get_setting(m, :error_method)    # method for calculating error at the end of each loop
+        func_errors = Vector{Float64}(undef, max_iter)  # track error for each iteration
 
         if update_method == :average
             um = (new, old) -> average_rate(new, old, get_setting(m, :learning_rate))
@@ -51,14 +54,19 @@ function solve(m::AbstractNLCTFPModel, init_guess::OrderedDict = OrderedDict{Sym
 
         # Some other set up
         proposal_funcvar = deepcopy(funcvar) # so we can calculate difference between proposal and current values
-        total_time = 0.
+        total_time = [0.]
         guess_slm_coefs = !isempty(init_slm_coefs)
+
+        if isempty(vars_for_error)
+            vars_for_error = collect(keys(funcvar_dict))
+        end
 
         # Start loop!
         if verbose != :none
             println("Beginning functional iteration . . .\n")
         end
 
+        success = falses(1)
         for iter in 1:max_iter
             # Get a new guess
             if verbose != :none
@@ -96,7 +104,7 @@ function solve(m::AbstractNLCTFPModel, init_guess::OrderedDict = OrderedDict{Sym
             end
 
             # Calculate errors
-            func_errors[iter] = calculate_func_error(new_funcvar, funcvar, error_method)
+            func_errors[iter] = calculate_func_error(new_funcvar, funcvar, error_method; vars = vars_for_error)
 
             if verbose != :none
                 spaces1, spaces2, spaces3 = if iter < 10
@@ -109,7 +117,7 @@ function solve(m::AbstractNLCTFPModel, init_guess::OrderedDict = OrderedDict{Sym
 
                 println("Iteration $(iter), current error:     $(func_errors[iter]).")
                 if verbose == :high
-                    for k in keys(proposal_funcvar)
+                    for k in vars_for_error
                         indiv_funcvar_err = calculate_func_error(proposal_funcvar[k], funcvar[k], error_method)
                         println("Error for $(k):               $indiv_funcvar_err")
                     end
@@ -118,10 +126,10 @@ function solve(m::AbstractNLCTFPModel, init_guess::OrderedDict = OrderedDict{Sym
                 end
 
                 loop_time = (time_ns() - begin_time) / 6e10 # 60 * 1e9 = 6e10
-                total_time += loop_time
+                total_time[1] += loop_time
                 expected_time_remaining = (max_iter - iter) * loop_time / 6e10
                 println(verbose, :high, "Duration of loop:" * spaces1 * "$loop_time")
-                println("Total elapsed time:" * spaces2 * "$total_time")
+                println("Total elapsed time:" * spaces2 * "$(total_time[1])")
                 println(verbose, :high, "Expected max remaining time:" * spaces3 * "$expected_time_remaining")
                 println("\n")
             end
@@ -131,6 +139,7 @@ function solve(m::AbstractNLCTFPModel, init_guess::OrderedDict = OrderedDict{Sym
                 if verbose != :none
                     println("Convergence achieved! Final round error: func_errors[iter]")
                 end
+                success[1] = true
                 break
             else # If not, update the guesses for the functional variables
                 for (k, v) in proposal_funcvar
@@ -139,16 +148,21 @@ function solve(m::AbstractNLCTFPModel, init_guess::OrderedDict = OrderedDict{Sym
             end
         end
 
-        if verbose != :none
-            println("Calculating remaining variables . . .")
-            aug_time = time_ns()
+        if success[1]
+            if verbose != :none
+                println("Calculating remaining variables . . .")
+                aug_time = time_ns()
+            end
+
+            augment_variables!(m, stategrid, funcvar, derivs, endo)
+
+            if verbose != :none
+                total_time[1] += (time_ns() - aug_time) / 6e10
+            end
         end
 
-        augment_variables!(m, stategrid, funcvar, derivs, endo)
-
         if verbose != :none
-            total_time += (time_ns() - aug_time) / 6e10
-            println("Total elapsed time: $total_time")
+            println("Total elapsed time: $(total_time[1])")
         end
     end
 end
@@ -166,7 +180,7 @@ function solve_nojump(m::AbstractNLCTFPModel; method::Symbol = :ode, return_sol:
     stategrid, functional_variables, derivatives, endogenous_variables = initialize_nojump!(m)
 
     if (method == :ode || method == :ODE) && ndims(stategrid) == 1 # Univariate no jump model => use ODE methods
-        s = collect(keys(get_stategrid(m)))[1] # state variable name
+        s = collect(keys(get_state_variables(m)))[1] # state variable name
         ode_f, ode_callback = eqcond_nojump(m)
 
         tspan = (stategrid[s][1], stategrid[s][end])
