@@ -12,6 +12,8 @@ tempered fixed-point iteration.
 
 The current plan of development is
 
-1. Replicate Li (2020) in Julia.
-2. Rewrite the solution method to apply pseudo-transient continuation.
-3. Extend EconPDEs.jl to permit generic problems featuring fixed points.
+1. Replicate Li (2020) in Julia. (DONE)
+    a. Approx. 4 times faster (2s in Julia vs. 8s in MATLAB) on a Macbook Pro.
+2. Implement basic "Brunnermeier-Sannikov" style model with jumps.
+3. Rewrite the solution method to apply pseudo-transient continuation. Test with the Brunnermeier-Sannikov model.
+4. Extend EconPDEs.jl to permit generic problems featuring fixed points.
