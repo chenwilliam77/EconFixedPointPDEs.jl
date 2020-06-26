@@ -12,6 +12,11 @@ using NLPModels: ADNLSModel, LLSModel , FeasibilityFormNLS#, @lencheck, Abstract
 
 import Base: eltype, getindex
 import DiffEqBase: initialize!, solve
+import Base.show
+
+function Base.show(io::IO,  ::MIME"text/plain", sg::StateGrid)
+    @printf io "%s-element %s\n" string(length(sg)) string(typeof(sg))
+end
 
 # src/ directory
 include("abstract_NLCT_model.jl")

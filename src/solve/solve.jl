@@ -145,7 +145,7 @@ function solve(m::AbstractNLCTFPModel, init_guess::OrderedDict = OrderedDict{Sym
 
             if func_errors[iter] < func_tol
                 if verbose != :none
-                    println("Convergence achieved! Final round error: func_errors[iter]")
+                    println("Convergence achieved! Final round error: $(func_errors[iter])")
                 end
                 success[1] = true
                 break
@@ -169,7 +169,7 @@ function solve(m::AbstractNLCTFPModel, init_guess::OrderedDict = OrderedDict{Sym
             println("Total elapsed time (min): $(round(total_time[1], digits = 4))\n")
         end
 
-        return stategrid, funcvar, derivs, endo
+        return stategrid, funcvar, derivs, endo, success[1]
     end
 end
 
