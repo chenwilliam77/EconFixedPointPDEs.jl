@@ -2,10 +2,10 @@ using Test, OrderedCollections
 include(joinpath(dirname(@__FILE__), "../../src/includeall.jl"))
 
 ## Check direct implementation of functional iteration loop matches output from solve
-# COPY THIS SOLVE TEST TO THE TEST FOR LI 2020 AS WELL THAT IT ACTUALLY SOLVES
-# ALSO NOW CHECK THAT SOLVE CREATES THE SAME RESULT AS THE DIRECT IMPLEMENTATION
 # Initialize
 m = Li2020()
+m <= Setting(:tol, 1e-2)
+m <= Setting(:learning_rate, 0.6) # Set to 0.6 to speed it up relative to the Li 2020 solution
 stategrid, funcvar, derivs, endo = initialize!(m)
 funcvar_dict = get_functional_variables(m)
 func_iter = eqcond(m)
@@ -65,9 +65,9 @@ for iter in 1:max_iter
     loop_time = (time_ns() - begin_time) / 6e10 # 60 * 1e9 = 6e10
     global total_time += loop_time
     expected_time_remaining = (max_iter - iter) * loop_time
-    println(verbose, :high, "Duration of loop (min):" * spaces1 * "$(round(loop_time, digits = 5))")
-    println("Total elapsed time (min):" * spaces2 * "$(round(total_time, digits = 5))")
-    println(verbose, :high, "Expected max remaining time (min):" * spaces3 * "$(round(expected_time_remaining, digits = 5))")
+    println(verbose, :high, "Duration of loop (min):" * spaces1 * "$(round(loop_time, digits = 4))")
+    println("Total elapsed time (min):" * spaces2 * "$(round(total_time, digits = 4))")
+    println(verbose, :high, "Expected max remaining time (min):" * spaces3 * "$(round(expected_time_remaining, digits = 4))")
     println("\n")
 
     # Convergence?
@@ -87,4 +87,18 @@ println("Calculating remaining variables . . .")
 aug_time = time_ns()
 augment_variables!(m, stategrid, funcvar, derivs, endo)
 total_time += (time_ns() - aug_time) / 6e10
-println("Total elapsed time (min): $(round(total_time, digits = 35))")
+println("Total elapsed time (min): $(round(total_time, digits = 4))\n")
+
+stategrid_solve, funcvar_solve, derivs_solve, endo_solve = solve(m; verbose = verbose, vars_for_error = error_vars)
+
+@test stategrid[:w] == stategrid_solve[:w]
+for k in keys(funcvar_solve)
+    @test maximum(abs.(funcvar[k][1:end - 1] - funcvar_solve[k][1:end - 1])) < 1e-11
+    @test abs(funcvar[k][end] - funcvar_solve[k][end]) < 5e-6
+end
+for k in keys(derivs_solve)
+     @test @test_matrix_approx_eq derivs[k] derivs_solve[k]
+end
+for k in keys(endo_solve)
+    @test @test_matrix_approx_eq endo[k][1:end - 1] endo_solve[k][1:end - 1]
+end
