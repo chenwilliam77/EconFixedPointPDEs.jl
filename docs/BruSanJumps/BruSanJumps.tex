@@ -1,0 +1,695 @@
+\documentclass[12 pt, oneside]{article}
+\textheight 9 in
+\textwidth 6.5 in
+\topmargin 0 in
+\oddsidemargin .3 in
+\evensidemargin .3 in
+\usepackage{amssymb}
+\usepackage{amsmath,amsthm}
+\usepackage{amsbsy,paralist}
+\usepackage{appendix}
+\usepackage{natbib}
+\usepackage{amsfonts}
+\usepackage{graphicx}
+\usepackage{epsfig}
+\usepackage{color}
+\usepackage{mathrsfs}
+\usepackage{fancyhdr}
+\usepackage{setspace}
+%\usepackage[nodisplayskipstretch]{setspace}
+\usepackage{fullpage}
+\usepackage{cancel}
+\usepackage{pgfplots}
+\usepackage{lipsum}
+% \usepackage{subfig}
+\usepackage{wrapfig,subcaption}
+\usepackage{xfrac}
+\usepackage{bbm}
+\let\oldemptyset\emptyset
+\let\emptyset\varnothing
+\newtheorem*{thm}{Theorem}
+\newtheorem*{lem}{Lemma}
+\newtheorem{lemma}{Lemma}[section]
+\newtheorem{lemnum}{Lemma}
+\newtheorem*{cor}{Corollary}
+\newtheorem{corollary}{Corollary}[section]
+\newtheorem{cornum}{Corollary}
+\newtheorem{theorem}{Theorem}[section]
+\newtheorem{thmnum}{Theorem}
+\newtheorem*{prop}{Proposition}
+\newtheorem{proposition}{Proposition}[section]
+\newtheorem{propnum}{Proposition}
+\theoremstyle{definition}
+\newtheorem*{remark}{Remarks}
+\theoremstyle{definition}
+\newtheorem*{eg}{Example}
+\theoremstyle{definition}
+\newtheorem*{defn}{Definition}
+\newtheorem{definition}{Definition}
+\newtheorem{defnnum}{Definition}[section]
+\newcommand{\bigsum}[2]{\sum\limits_{#1}^{#2}}
+\newcommand{\bigprod}[2]{\prod\limits_{#1}^{#2}}
+\newcommand{\nlim}{\lim_{n\ra\infty}}
+\DeclareMathOperator{\as}{a.s.}
+\DeclareMathOperator{\almalw}{a.a.}
+\newcommand{\vecx}{\vec{x}}
+\newcommand{\vecy}{\vec{y}}
+\DeclareMathOperator{\Char}{Char}
+\DeclareMathOperator{\orb}{orb}
+\DeclareMathOperator{\stab}{stab}
+\DeclareMathOperator{\Aut}{Aut}
+\DeclareMathOperator{\Inn}{Inn}
+\DeclareMathOperator{\lcm}{lcm}
+\DeclareMathOperator{\card}{card}
+\DeclareMathOperator{\Cl}{Cl}
+\DeclareMathOperator{\Int}{Int}
+\DeclareMathOperator{\var}{Var}
+\DeclareMathOperator{\cov}{Cov}
+\DeclareMathOperator{\io}{i.o.}
+\DeclareMathOperator{\sgn}{sgn}
+\DeclareMathOperator{\tr}{trace}
+\DeclareMathOperator{\diag}{diag}
+\DeclareMathOperator{\vect}{vec}
+\DeclareMathOperator{\diver}{div}
+\DeclareMathOperator{\gradi}{grad}
+\newcommand{\norm}[1]{\left\lVert#1\right\rVert}
+\newcommand{\bfSigma}{\mathbf{\Sigma}}
+\newcommand{\bfc}{\mathbf{c}}
+\newcommand{\bfb}{\mathbf{b}}
+\newcommand{\bfa}{\mathbf{a}}
+\newcommand{\bfd}{\mathbf{d}}
+\newcommand{\bff}{\mathbf{f}}
+\newcommand{\bfh}{\mathbf{h}}
+\newcommand{\bfg}{\mathbf{g}}
+\newcommand{\bfi}{\mathbf{i}}
+\newcommand{\bfj}{\mathbf{j}}
+\newcommand{\bfk}{\mathbf{k}}
+\newcommand{\bfl}{\mathbf{l}}
+\newcommand{\bfm}{\mathbf{m}}
+\newcommand{\bfn}{\mathbf{n}}
+\newcommand{\bfo}{\mathbf{o}}
+\newcommand{\bfp}{\mathbf{p}}
+\newcommand{\bfq}{\mathbf{q}}
+\newcommand{\bfr}{\mathbf{r}}
+\newcommand{\bfs}{\mathbf{s}}
+\newcommand{\bft}{\mathbf{t}}
+\newcommand{\bfx}{\mathbf{x}}
+\newcommand{\bfy}{\mathbf{y}}
+\newcommand{\bfz}{\mathbf{z}}
+\newcommand{\bfu}{\mathbf{u}}
+\newcommand{\bfv}{\mathbf{v}}
+\newcommand{\bfw}{\mathbf{w}}
+\newcommand{\bfX}{\mathbf{X}}
+\newcommand{\bfY}{\mathbf{Y}}
+\newcommand{\bfA}{\mathbf{A}}
+\newcommand{\bfB}{\mathbf{B}}
+\newcommand{\bfC}{\mathbf{C}}
+\newcommand{\bfD}{\mathbf{D}}
+\newcommand{\bfE}{\mathbf{E}}
+\newcommand{\bfF}{\mathbf{F}}
+\newcommand{\bfG}{\mathbf{G}}
+\newcommand{\bfH}{\mathbf{H}}
+\newcommand{\bfI}{\mathbf{I}}
+\newcommand{\bfJ}{\mathbf{J}}
+\newcommand{\bfK}{\mathbf{K}}
+\newcommand{\bfL}{\mathbf{L}}
+\newcommand{\bfU}{\mathbf{U}}
+\newcommand{\bfV}{\mathbf{V}}
+\newcommand{\bfW}{\mathbf{W}}
+\newcommand{\bfZ}{\mathbf{Z}}
+\newcommand{\bfM}{\mathbf{M}}
+\newcommand{\bfN}{\mathbf{N}}
+\newcommand{\bfQ}{\mathbf{Q}}
+\newcommand{\bfO}{\mathbf{O}}
+\newcommand{\bfR}{\mathbf{R}}
+\newcommand{\bfS}{\mathbf{S}}
+\newcommand{\bfT}{\mathbf{T}}
+\newcommand{\bfP}{\mathbf{P}}
+\newcommand{\bfzero}{\mathbf{0}}
+\newcommand{\R}{\mathbb{R}}
+\newcommand{\E}{\mathbb{E}}
+\newcommand{\N}{\mathbb{N}}
+\newcommand{\Q}{\mathbb{Q}}
+\newcommand{\Z}{\mathbb{Z}}
+\newcommand{\curA}{\mathscr{A}}
+\newcommand{\curC}{\mathscr{C}}
+\newcommand{\curD}{\mathscr{D}}
+\newcommand{\curE}{\mathscr{E}}
+\newcommand{\curH}{\mathscr{H}}
+\newcommand{\curJ}{\mathscr{J}}
+\newcommand{\curK}{\mathscr{K}}
+\newcommand{\curN}{\mathscr{N}}
+\newcommand{\curO}{\mathscr{O}}
+\newcommand{\curQ}{\mathscr{Q}}
+\newcommand{\curS}{\mathscr{S}}
+\newcommand{\curT}{\mathscr{T}}
+\newcommand{\curU}{\mathscr{U}}
+\newcommand{\curV}{\mathscr{V}}
+\newcommand{\curW}{\mathscr{W}}
+\newcommand{\curZ}{\mathscr{Z}}
+\newcommand{\curI}{\mathscr{I}}
+\newcommand{\curB}{\mathscr{B}}
+\newcommand{\curF}{\mathscr{F}}
+\newcommand{\curG}{\mathscr{G}}
+\newcommand{\curM}{\mathscr{M}}
+\newcommand{\curL}{\mathscr{L}}
+\newcommand{\curP}{\mathscr{P}}
+\newcommand{\curR}{\mathscr{R}}
+\newcommand{\curX}{\mathscr{X}}
+\newcommand{\curY}{\mathscr{Y}}
+\newcommand{\calA}{\mathcal{A}}
+\newcommand{\calB}{\mathcal{B}}
+\newcommand{\calC}{\mathcal{C}}
+\newcommand{\calD}{\mathcal{D}}
+\newcommand{\calE}{\mathcal{E}}
+\newcommand{\calF}{\mathcal{F}}
+\newcommand{\calG}{\mathcal{G}}
+\newcommand{\calH}{\mathcal{H}}
+\newcommand{\calI}{\mathcal{I}}
+\newcommand{\calJ}{\mathcal{J}}
+\newcommand{\calL}{\mathcal{L}}
+\newcommand{\calK}{\mathcal{K}}
+\newcommand{\calM}{\mathcal{M}}
+\newcommand{\calN}{\mathcal{N}}
+\newcommand{\calO}{\mathcal{O}}
+\newcommand{\calP}{\mathcal{P}}
+\newcommand{\calQ}{\mathcal{Q}}
+\newcommand{\calR}{\mathcal{R}}
+\newcommand{\calS}{\mathcal{S}}
+\newcommand{\calT}{\mathcal{T}}
+\newcommand{\calU}{\mathcal{U}}
+\newcommand{\calV}{\mathcal{V}}
+\newcommand{\calW}{\mathcal{W}}
+\newcommand{\calX}{\mathcal{X}}
+\newcommand{\calY}{\mathcal{Y}}
+\newcommand{\calZ}{\mathcal{Z}}
+\newcommand{\RA}{\Rightarrow}
+\newcommand{\ra}{\rightarrow}
+\newcommand{\fd}{\vspace{2.5mm}}
+\newcommand{\ds}{\vspace{1mm}}
+\setlength{\parindent}{1.5cm}
+\doublespacing
+\begin{document}
+\title{A ``Brunnermeier-Sannikov'' Model with Jumps}
+\author{William Chen}
+\date{\today}
+\maketitle
+
+\section{Introduction}
+\label{sec:intro}
+
+
+\section{Model}
+\label{sec:model}
+
+\subsection{Set Up}
+Time is infinite and continuous. The economy is populated by two unit masses of agents, ``households'' and ``experts''.
+I will denote households and experts, respectively, by a subscript of $j\in \{h, e\}$.
+
+\subsubsection{Technology and Financial Markets}
+There is a single factor of production called ``capital''. If an agent $i$ holds $k_t$ units of capital, then the stock of capital
+evolves according to the law of motion\footnote{I omit $t^-$ subscripts in the statement of the law of motion to reduce notation. The more formal
+statement of the law of motion is
+\begin{align*}
+  \frac{dk_t }{k_{t^-}} = (\Phi(\iota_{i, t^-}) - \delta)\, dt + \sigma\, dW_t - \kappa_{i, t}\, dJ_t,
+\end{align*}
+which makes it clear that the process for $k_t$ is cadlag.}
+\begin{equation}
+  \label{eq:capital indiv law of motion}
+  \frac{dk_{i, t}}{k_{i, t}} = (\Phi(\iota_{i, t}) - \delta)\, dt + \sigma\, dW_t - \kappa_{i, t} \, dJ_t,
+\end{equation}
+where $\Phi(\cdot)$ is a standard investment technology with rate of internal investment $\iota_{i, t}$;
+$\delta$ is the rate of depreciation; $\sigma$ is the volatility
+of the exogenous standard Brownian motion $W_t$; and
+$\kappa_{i, t}$ is an idiosyncratic Bernoulli random variable equaling $\tilde{\kappa}$ with probability $\theta$
+and $0$ with probability $1 - \theta$, conditional on a realization of the Poisson process $J_t$, which has intensity $\lambda$.
+Conditional on $dJ_t = 0$, the growth rate of capital is controlled by internal investment subject to Gaussian shocks. When $dJ_t = 1$, however,
+an individual agent has a probability $\theta$ of exposure to the crisis shock. Agents exposed to the shock lose a fraction $\tilde{\kappa}$ of their capital stock.
+Absent redistributive insurance schemes, I assume $\tilde{\kappa} < 1$ so that no agent is ever wiped out by the crisis shock, or else they would obtain
+infinitely negative utility.
+
+A final consumption good is produced from capital linearly, but the productivity depends on the agent using the capital.
+If an expert uses $k_t$ units of capital to produce consumption, then they produce output at the rate $a_ek_t$. In contrast,
+a household produces output at the rate $a_hk_t$, where $a_e \geq a_h  > 0$.
+
+Capital is traded in a perfectly competitive market at a price $q_t$. Because capital is the only real asset in the economy,
+I will refer to $q_t$ interchangeably as the asset price. I conjecture that the price of capital evolves endogenously according to
+\begin{equation}
+  \label{eq:asset price law of motion}
+  \frac{dq_t}{q_t} = \mu_{q, t}\, dt + \sigma_{q, t}\, dW_t - \kappa_{q, t}\, dJ_t.
+\end{equation}
+
+There is also a market for risk-free debt in zero net supply. The risk-free interest rate is denoted by
+$dr_{f, t}$.\footnote{It is assumed that the risk-free rate process has paths of finite variation (or absolutely continuous paths).}
+
+The rate of return on capital for agent $i$ of type $j$ is the sum of the dividend yield and capital gains, hence
+\begin{equation}
+  \label{eq:idiosyncratic return on risky capital}
+  \begin{split}
+    dr_{kij, t} & =\left( \frac{a_j - \iota_{j, t}}{q_t} + \mu_{q, t} + \Phi(\iota_{j, t}) - \delta  + \sigma\sigma_{q, t} \right)\,dt    \\
+    & \quad + (\sigma + \sigma_{q, t}) \, dW_t - (\kappa_{i, t} + \kappa_{q, t} - \kappa_{i, t} \kappa_{q, t})\, dJ_t.
+  \end{split}
+\end{equation}
+
+After aggregating across agents of type $j$, the rate of return on capital becomes
+\begin{equation}
+  \label{eq:return on risky capital}
+  \begin{split}
+    dr_{kj, t} & =\left( \frac{a_j - \iota_{j, t}}{q_t} + \mu_{q, t} + \Phi(\iota_{j, t}) - \delta  + \sigma\sigma_{q, t} \right)\,dt    \\
+    & \quad + (\sigma + \sigma_{q, t}) \, dW_t - (\kappa + \kappa_{q, t} - \kappa \kappa_{q, t})\, dJ_t,
+  \end{split}
+\end{equation}
+where $\kappa = \theta\tilde{\kappa}$ is the expected destruction of capital.
+
+
+
+
+\subsubsection{Preferences}
+Households and experts both have recursive preferences. For an agent of type $j \in \{h, e\}$, their objective function is their lifetime expected utility
+\begin{equation}
+\label{eq:recursive preferences}
+V_{j, 0} =   \E_0\left[\int_0^\infty f(c_{j, t}, V_{j, t})\, dt\right],
+\end{equation}
+where
+\begin{equation}
+  \label{eq:recursive aggregator}
+f(c_j, V_j)  = \left(\frac{1 - \gamma_j}{1 - 1 / \psi_j} \right)V_j\left[\left(\frac{c_j}{((1 - \gamma_j)V_j)^{1 / (1 - \gamma_j)}}\right)^{1 - 1 / \psi_j} - (\rho_j + \nu_j)\right].
+\end{equation}
+when $\psi_j\neq 1$ and
+\begin{equation}
+  \label{eq:recursive aggregator psi_j = 1}
+f(c_j, V_j)  = (\rho_j + \nu_j)(1 - \gamma_j)V_j\left(\log(c_j) - \frac{1}{1 - \gamma_j}\log((1 - \gamma_j)V_j)\right)
+\end{equation}
+when $\psi_j = 1$.
+
+For generality of the model, we allow experts' and households' preferences to be generically different.
+Agents may differ in their risk aversion $\gamma_j$, elasticity of intertemporal substituion $\psi_j$,
+time preference (or discount) rate $\rho_j$, and
+death rate $\nu_j$.\footnote{I assume that at every instance a fraction $\nu_j$ of agents of type $j$ die and are immediately replaced by new agents, who
+are endowed with the wealth of dying agents. More elaborate redistribution schemes can implement wealth redistribution due to death dynamics.}
+
+\subsubsection{Portfolio Choice}
+
+The portfolio choice problem for both agents are virtually identical, so I only state the problem for experts. To simplify the statement,
+I present the representative expert's problem directly:
+\begin{equation*}
+  V_{e, 0}  = \max_{C_{e, t}, \iota_{e, t}, \varphi_{e, t}} \E_0\left[\int_0^\infty f(C_{j, t}, V_{j, t})\, dt\right],
+\end{equation*}
+subject to the law of motion for net worth
+\begin{equation}
+\label{eq:expert net worth law of motion}
+dN_{e, t}  = N_{e, t}(dr_{f, t} + \varphi_{e, t}(dr_{ke, t} - dr_{f, t})) - C_{e, t}.
+\end{equation}
+The expert's controls are its consumption rate $C_{e, t}$, its rate of internal investment $\iota_{e, t}$, and the share of its net worth
+invested in the risky asset $\varphi_{e, t}$.
+
+
+
+
+\subsection{Solving Equilibrium}
+I look for a recursive stationary Markov equilibrium.
+
+\subsubsection{Portfolio Choice with Recursive Preferences}
+
+To solve experts' and households' portfolio choice problems, I conjecture that their value functions are given by
+\begin{equation}
+  \label{eq:value function power utility form}
+  V_{j, t}  = \frac{(\xi_{j, t} N_{j, t})^{ 1- \gamma_j}}{1 - \gamma_j},
+\end{equation}
+where $\xi_{j, t}$ is the marginal value of additional net worth, is independent of $N_{j, t}$, and follows the jump diffusion
+\begin{equation}\label{eq:xi law of motion}
+\frac{d\xi_{j, t}}{\xi_{j, t}} = \mu_{\xi j, t}\,dt + \sigma_{\xi j, t} \, dW_t + \kappa_{\xi j, t} \, dJ_t.
+\end{equation}
+I may thus represent the value function as $V_{j, t}\equiv V_j(N_{j, t})$.
+
+The Hamilton-Jacobi-Bellman equation is
+\begin{equation}
+\label{eq:hjb unsimplified}
+\begin{split}
+  0 & = \max_{C_{e, t}, \iota_{e, t}, \varphi_{e, t}}f(C_{e, t}, V_e(N_{e, t})) + \E\left[d\left(\frac{(\xi_{e, t} N_{e, t})^{1 - \gamma_e}}{1 - \gamma_e}\right)\right]
+\end{split}
+\end{equation}
+To write the expectation, I apply Ito's lemma for jump diffusions.
+
+Write the law of motion for aggregate expert net worth as
+\begin{align}
+\label{eq:net worth law of motion}
+  \frac{dN_{e, t}}{N_{e, t}} & = \mu_{Ne, t}\, dt + \sigma_{Ne, t}\, dW_t - \kappa_{Ne, t}\, dJ_t,
+\end{align}
+where
+\begin{align}\label{eq:unsimp drift net worth}
+  \mu_{Ne, t} & = dr_{f,t} - \frac{C_{e, t}}{N_{e, t}} + \varphi_{e, t}\left(\frac{a_e - \iota_{e, t}}{q_t} + \mu_{q, t} + \Phi(\iota_{e, t}) - \delta + \sigma\sigma_{q, t} - dr_{f, t}\right)\\
+  \sigma_{Ne, t} & = \varphi_{e, t}(\sigma + \sigma_{q, t})\\
+  \kappa_{Ne, t} & = \varphi_{e, t}(\kappa + \kappa_{q, t} - \kappa\kappa_{q, t}).
+\end{align}
+By Ito's product rule,
+\begin{align*}
+  \frac{d(\xi_{e, t} N_{e, t})}{\xi_{e, t}N_{e, t}} & = (\mu_{\xi e, t} + \mu_{Ne, t} + \sigma_{\xi e, t} \sigma_{Ne, t})\,dt + (\sigma_{\xi e, t} + \sigma_{Ne, t})\, dW_t + (\kappa_{\xi e, t} - \kappa_{Ne, t} - \kappa_{\xi e, t}\kappa_{Ne, t})\, dJ_t.
+\end{align*}
+By Ito's lemma, if $x_t$ follows a jump diffusion, then
+\begin{align*}
+dx_t^{1 - \gamma_e} & = \left((1 - \gamma_e) x_t^{ - \gamma_e}\mu_{x, t}x_t - \frac{(1 - \gamma_e)\gamma_e}{2} x_t^{-\gamma_e - 1}(\sigma_{x, t}x_t)^2\right)\, dt\\
+                    &\quad + (1 - \gamma_e)x_t^{- \gamma_e}\sigma_{x, t}x_t\, dW_t  + (((1 + \kappa_{x, t})x_t)^{1 - \gamma_e} - x_t^{1 - \gamma_e})\, dJ_t\\
+\frac{1}{1 - \gamma_e}\frac{dx_t^{1 - \gamma_e}}{x_t^{1 - \gamma_e}} & = (\mu_{x, t} - \frac{\gamma_e}{2} \sigma_{x, t}^2)\, dt + \sigma_{x, t}\, dW_t + \frac{(1 + \kappa_{x, t})^{1 - \gamma_e} - 1}{1 - \gamma_e}\, dJ_t,
+\end{align*}
+hence
+\begin{align*}
+  \frac{1}{1 - \gamma_e}\frac{d(\xi_{e, t}N_{e, t})^{1- \gamma_e}}{(\xi_{e, t}N_{e, t})^{1 - \gamma_e}} & = \left(\mu_{\xi e, t} + \mu_{Ne, t} + \sigma_{\xi e, t} \sigma_{Ne, t} - \frac{\gamma_e}{2} (\sigma_{\xi e, t} + \sigma_{Ne, t})^2 \right)\, dt\\
+                                                                                                    &\quad + (\sigma_{\xi e, t} + \sigma_{Ne, t})\, dW_t + \frac{(1 + \kappa_{\xi e, t} - \kappa_{Ne, t} - \kappa_{\xi e, t}\kappa_{Ne, t})^{1 - \gamma_e} - 1}{1 - \gamma_e}\, dJ_t
+\end{align*}
+The jump size further simplifies to
+\begin{align*}
+(1 + \kappa_{\xi e, t} - \kappa_{Ne, t} - \kappa_{\xi e, t}\kappa_{Ne, t})^{1 - \gamma_e} & = ((1 + \kappa_{\xi e, t}) - \kappa_{Ne, t}(1 + \kappa_{\xi e, t}))^{1 - \gamma_e}  = ((1 + \kappa_{\xi e, t})(1  - \kappa_{Ne, t}))^{1 - \gamma_e}
+\end{align*}
+Additionally, the aggregator simplifies to
+\begin{align*}
+f(C_{e, t}, V_e(N_{e, t})) & =
+                             \begin{cases}
+                               \frac{(\xi_{e, t} N_{e, t})^{ 1- \gamma_e}}{1 - 1/\psi_e}\left[\left(\frac{C_{e, t}}{\xi_{e, t}N_{e, t}  }\right)^{1 - 1 / \psi_e} - (\rho_e + \nu_e)\right] & \psi_e\neq 1\\
+                              (\rho_e + \nu_e)(\xi_{e, t} N_{e, t})^{1 - \gamma_e}\log\left(\frac{C_{e, t}}{\xi_{e, t}N_{e, t}}\right) & \psi_e = 1
+                             \end{cases}
+\end{align*}
+
+I plug these simplified expressions into (\ref{eq:hjb unsimplified}) and divide by $(\xi_{e, t}N_{e, t})^{1 - \gamma_e}$ to obtain
+\begin{equation}
+\label{eq:hjb simplified step 1}
+\begin{split}
+  0 & = \frac{1}{1 - 1/\psi_e}\left[\left(\frac{C_{e, t}}{\xi_{e, t}N_{e, t}}\right)^{1 - 1/\psi_e} - (\rho_e + \nu_e)\right]\mathbbm{1}_{\psi_e\neq 1} + (\rho_e + \nu_e)\log\left(\frac{C_{e, t}}{\xi_{e, t}N_{e, t}}\right)\mathbbm{1}_{\psi_e = 1}\\ %  &\quad + \mu_{\xi e, t} + \mu_{Ne, t} +\sigma_{\xi e, t} \sigma_{Ne, t} - \frac{\gamma_e}{2}(\sigma_{\xi e , t} + \sigma_{Ne, t})^2\\
+  &\quad + \mu_{\xi e, t} + \mu_{Ne, t}  - \frac{\gamma_e}{2}(\sigma_{\xi e , t}^2 + \sigma_{Ne, t}^2) + (1 - \gamma_e)\sigma_{\xi e, t} \sigma_{Ne, t}\\
+  &\quad + \frac{\lambda}{1 - \gamma_e}(((1 + \kappa_{\xi e, t})(1 - \kappa_{Ne, t}))^{1 - \gamma_e} - 1).
+\end{split}
+\end{equation}
+The first-order conditions are
+\begin{align*}
+  (C_{e, t}):\quad 0 & =\frac{C_{e, t}^{-1 / \psi_e}}{(\xi_{e, t}N_{e, t})^{1 - 1/\psi_e}}\mathbbm{1}_{\psi_e \neq 1} + (\rho_e + \nu_e)\frac{1}{C_{e, t}}\mathbbm{1}_{\psi_e = 1} - \frac{1}{N_{e, t}}\\
+  C_{e, t}^{1 - 1/\psi_e} & = (\xi_{e, t}^{1 - 1/\psi_e}N_{e, t}^{ - 1/\psi_e})^{1 - \psi_e} = \xi_{e, t}^{2 - \psi_e - 1/\psi_e}N_{e, t}^{1 - 1/\psi_e}\quad \text{ if $\psi_e \neq 1$}\\
+  C_{e, t} & = (\rho_e + \nu_e) N_{e, t} \quad \text{ if $\psi_e = 1$}\\
+  (\iota_{e, t}):\quad 0 & = -\frac{1}{q_t} + \Phi'(\iota_{e, t})\\
+    (\varphi_{e, t}): \quad 0 & = \frac{a_e - \iota_{e, t}}{q_t} + \mu_{q, t} + \Phi(\iota_{e, t}) - \delta + \sigma\sigma_{q, t}- dr_{f, t} - \gamma_e\varphi_{e, t}(\sigma + \sigma_{q, t})^2   + (1 - \gamma_e)\sigma_{\xi e, t}(\sigma + \sigma_{q, t})\\
+                              &\quad  - \lambda(1 + \kappa_{\xi e, t})^{1 - \gamma_e}(1  - \kappa_{Ne, t})^{- \gamma_e}(\kappa + \kappa_{q, t} - \kappa\kappa_{q, t})
+\end{align*}
+Observe that
+\begin{align*}
+  \E[dr_{ke, t}] & = \frac{a_e - \iota_{e, t}}{q_t} + \mu_{q, t} + \Phi(\iota_{e, t}) - \delta + \sigma\sigma_{q, t} - \lambda(\kappa + \kappa_{q, t} - \kappa\kappa_{q, t}),
+\end{align*}
+hence the first-order condition for leverage can be written as
+\begin{align*}
+  \E[dr_{ke, t}] - dr_{f, t} & = \gamma_e\varphi_{e, t}(\sigma + \sigma_{q, t})^2 + (\gamma_e - 1) \sigma_{\xi e, t}(\sigma + \sigma_{q, t}) \\
+                             &\quad + \lambda(\kappa + \kappa_{q, t} - \kappa\kappa_{q, t})((1 + \kappa_{\xi e, t})^{1 - \gamma_e}(1 - \varphi_{e, t}(\kappa + \kappa_{q, t} - \kappa\kappa_{q, t}))^{ - \gamma_e} - 1).
+\end{align*}
+
+To summarize, the FOCs are
+\begin{align}
+  \label{eq:consumption FOC}
+C_{e, t} & = \xi_{e, t}^{1 - \psi_e}N_{e, t} \mathbbm{1}_{\psi_e \neq 1} + (\rho_e + \nu_e)N_{e, t}\mathbbm{1}_{\psi_e = 1}\\
+\label{eq:internal investment FOC}
+\Phi'(\iota_{e, t}) & = \frac{1}{q_t}\\
+\label{eq:leverage FOC}
+  \begin{split}
+    & \frac{a_e - \iota_{e, t}}{q_t} + \mu_{q, t} + \Phi(\iota_{e, t}) - \delta + \sigma\sigma_{q, t} - dr_{f, t}\\
+    & = \gamma_e\varphi_{e, t}(\sigma + \sigma_{q, t})^2 + (\gamma_e - 1)\sigma_{\xi e, t}(\sigma + \sigma_{q, t}) \\
+    &\quad + \lambda(\kappa + \kappa_{q, t} - \kappa\kappa_{q, t})(1 + \kappa_{\xi e, t})^{1 - \gamma_e}(1 - \varphi_{e, t}(\kappa + \kappa_{q, t} - \kappa\kappa_{q, t}))^{ - \gamma_e}
+  \end{split}
+\end{align}
+
+After plugging these quantities back into the HJB, I obtain
+\begin{align*}
+  0 & = \frac{1}{1 - 1/\psi_e}\left[\left(\frac{\xi_{e, t}^{1 - \psi_e}N_{e, t}}{\xi_{e, t}N_{e, t}}\right)^{1 - 1/\psi_e} - (\rho_e + \nu_e)\right]\mathbbm{1}_{\psi_e\neq 1} + (\rho_e + \nu_e)\log\left(\frac{(\rho_e + \nu_e)N_{e, t}}{\xi_{e, t}N_{e, t}}\right)\mathbbm{1}_{\psi_e = 1}\\
+    & \quad +  dr_{f, t} - \xi_{e, t}^{1 - \psi_e}\mathbbm{1}_{\psi_e \neq 1} - (\rho_e + \nu_e)\mathbbm{1}_{\psi_e = 1} + \mu_{\xi e, t} - \frac{\gamma_e}{2}\sigma_{\xi e, t}^2\\
+    &\quad + \varphi_{e, t}(\gamma_e\varphi_{e, t}(\sigma + \sigma_{q, t}) + (\gamma_e - 1)\sigma_{\xi e, t}(\sigma + \sigma_{q, t})) \\
+    &\quad + \varphi_{e, t}\lambda(\kappa + \kappa_{q, t} - \kappa\kappa_{q, t})(1 + \kappa_{\xi e, t})^{1 - \gamma_e}(1 - \varphi_{e, t}(\kappa + \kappa_{q, t} - \kappa\kappa_{q, t}))^{ - \gamma_e}\\
+    &\quad - \frac{\gamma_e}{2}(\varphi_{e, t} (\sigma + \sigma_{q, t}))^2 + ( 1- \gamma_e)\varphi_{e, t}\sigma_{\xi e, t}(\sigma + \sigma_{q, t})\\
+    &\quad + \frac{\lambda}{1 - \gamma_e}(((1 + \kappa_{\xi e, t})(1 - \varphi_{e, t}(\kappa + \kappa_{q, t} - \kappa\kappa_{q, t})))^{1 - \gamma_e} - 1)\\%    & = \left(\frac{1}{1 - 1/\psi_e}(\xi_{e, t}^{1 - \psi_e} - (\rho_e + \nu_e)) - \xi_{e, t}^{1 - \psi_e}  \right)\mathbbm{1}_{\psi\neq 1} + (\rho_e + \nu_e)\left(\log\left(\frac{\rho_e + \nu_e}{\xi_{e, t}}\right) - 1\right)\mathbbm{1}_{\psi_e = 1}%    & = \left(\left(\frac{1}{1 - 1/\psi_e} - 1\right)\xi_{e, t}^{1 - \psi_e} - \frac{\rho_e + \nu_e}{1 - 1 / \psi_e} \right)\mathbbm{1}_{\psi\neq 1} + (\rho_e + \nu_e)\left(\log\left(\frac{\rho_e + \nu_e}{\xi_{e, t}}\right) - 1\right)\mathbbm{1}_{\psi_e = 1}
+    & = \left(\xi_{e, t}^{1 - \psi_e}\frac{1 / \psi_e}{1 - 1/\psi_e}  - \frac{\rho_e + \nu_e}{1 - 1 / \psi_e} \right)\mathbbm{1}_{\psi\neq 1} + (\rho_e + \nu_e)\left(\log\left(\frac{\rho_e + \nu_e}{\xi_{e, t}}\right) - 1\right)\mathbbm{1}_{\psi_e = 1}\\
+    &\quad + dr_{f, t} - \frac{\lambda}{1 - \gamma_e} + \mu_{\xi e, t} - \frac{\gamma_e}{2}\sigma_{\xi e, t}^2 +\frac{\gamma_e}{2}(\varphi_{e, t}(\sigma + \sigma_{q, t}))^2 \\
+    &\quad + \lambda(1 + \kappa_{\xi e, t})^{1 - \gamma_e}(1 - \varphi_{e, t}(\kappa + \kappa_{q, t} - \kappa \kappa_{q, t}))^{ - \gamma_e}\\
+    &\quad \times\left(\varphi_{e, t}(\kappa + \kappa_{q, t} - \kappa\kappa_{q, t}) + \frac{1}{1 - \gamma_e}(1 - \varphi_{e, t}(\kappa + \kappa_{q, t} - \kappa\kappa_{q, t}))  \right)\\
+    & = \left(\xi_{e, t}^{1 - \psi_e}\frac{1 / \psi_e}{1 - 1/\psi_e}  - \frac{\rho_e + \nu_e}{1 - 1 / \psi_e} \right)\mathbbm{1}_{\psi\neq 1} + (\rho_e + \nu_e)\left(\log\left(\frac{\rho_e + \nu_e}{\xi_{e, t}}\right) - 1\right)\mathbbm{1}_{\psi_e = 1}\\
+    &\quad + dr_{f, t} - \frac{\lambda}{1 - \gamma_e} + \mu_{\xi e, t} - \frac{\gamma_e}{2}\sigma_{\xi e, t}^2 +\frac{\gamma_e}{2}((\varphi_{e, t}(\sigma + \sigma_{q, t}))^2\\
+    &\quad + \frac{\lambda}{1 - \gamma_e}(1 + \kappa_{\xi e, t})^{1 - \gamma_e}(1 - \varphi_{e, t}(\kappa + \kappa_{q, t} - \kappa \kappa_{q, t}))^{ - \gamma_e}\left(1 - \gamma_e\varphi_{e, t}(\kappa + \kappa_{q, t} - \kappa\kappa_{q, t})\right)
+\end{align*}
+
+\subsubsection{Portfolio Choice with Log Utility}
+With log utility ($\psi_e = \gamma_e = 1$), the value function is
+\begin{equation}
+  \label{eq:value function log utility}
+  V_e(N_{e, t}) = \frac{\log(N_{e, t})}{\rho_e + \nu_e} + \xi_{e, t},
+\end{equation}
+where $\xi_{e, t}$ is still assumed to follow a jump diffusion. Then
+\begin{align*}
+  \E[dV_e(N_{e, t})] & = \frac{1}{\rho_e + \nu_e}\E[d\log(N_{e, t})] + \E[d\xi_{e, t}],
+\end{align*}
+and by Ito's lemma,
+\begin{align*}
+d\log(N_{e, t}) & = \left(\frac{1}{N_{e, t}}\mu_{Ne, t}N_{e, t} - \frac{1}{2}\frac{1}{N_{e, t}^2}(\sigma_{Ne, t}N_{e, t})^2\right)\,dt\\
+                &\quad + \frac{1}{N_{e, t}}\sigma_{Ne, t} N_{e, t}\, dW_t + (\log((1 - \kappa_{Ne, t})N_{e, t}) - \log(N_{e, t}))\, dJ_t\\
+                & = \left(\mu_{Ne, t} - \frac{1}{2}\sigma_{Ne, t}^2\right)\,dt + \sigma_{Ne, t}\, dW_t + (\log((1 - \kappa_{Ne, t})N_{e, t}) - \log(N_{e, t}))\, dJ_t.
+\end{align*}
+The HJB in the log utility case becomes
+\begin{align*}
+    \log(N_{e, t}) + (\rho_e + \nu_e) \xi_{e, t} & = \log(C_{e, t}) + \frac{1}{(\rho_e + \nu_e)}\left(\mu_{Ne, t} - \frac{1}{2}\sigma_{Ne, t}^2\right)\\
+                                                 &\quad + \lambda\frac{\log((1 - \kappa_{Ne, t})N_{e, t}) - \log(N_{e, t}) }{\rho_e + \nu_e} + \xi_{e, t}(\mu_{\xi e, t} + \lambda \kappa_{\xi e, t})
+\end{align*}
+and simplifies to
+\begin{equation}
+  \label{eq:hjb log utility}
+  \begin{split}
+  0 & = \max_{C_{e, t}, \iota_{e, t}, \varphi_{e, t}}\log\left(\frac{C_{e, t}}{N_{e, t}}\right)  + \xi_{e, t}(\mu_{\xi e, t} + \lambda \kappa_{\xi e, t} - (\rho_e + \nu_e))\\
+  &\quad + \frac{1}{\rho_e + \nu_e}\left(\mu_{Ne, t}  - \frac{1}{2} \sigma_{Ne, t}^2 + \lambda\log(1 - \kappa_{Ne, t})\right).
+  \end{split}
+\end{equation}
+The first-order conditions are
+\begin{align*}
+  (C_{e, t}):\quad 0 & = \frac{1}{C_{e, t}} + \frac{1}{(\rho_e + \nu_e)N_{e, t}}\\
+  (\iota_{e, t}):\quad 0 & = \Phi'(\iota_{e, t}) - \frac{1}{q_t}\\
+  (\varphi_{e, t}):\quad 0 & = \frac{a_e - \iota_{e, t}}{q_t} + \mu_{q, t} + \Phi(\iota_{e, t}) - \delta + \sigma\sigma_{q, t} - dr_{f, t} - \varphi_{e, t}(\sigma + \sigma_{q, t})^2 - \lambda\frac{\kappa + \kappa_{q, t} - \kappa\kappa_{q, t}}{1 - \varphi_{e, t}(\kappa + \kappa_{q, t} - \kappa\kappa_{q, t})},
+\end{align*}
+hence
+\begin{align}
+\label{eq:consumption FOC log}
+C_{e, t} & = (\rho_e + \nu_e)N_{e, t}\\
+\label{eq:internal investment FOC log}
+\Phi'(\iota_{e, t}) & = \frac{1}{q_t}\\
+\label{eq:leverage FOC log}
+  & \frac{a_e - \iota_{e, t}}{q_t} + \mu_{q, t} + \Phi(\iota_{e, t}) - \delta + \sigma\sigma_{q, t} - dr_{f, t}      \\
+         &\quad = \varphi_{e, t}(\sigma + \sigma_{q, t})^2 + \lambda\frac{\kappa + \kappa_{q, t} - \kappa\kappa_{q, t}}{1 - \varphi_{e, t}(\kappa + \kappa_{q, t} - \kappa\kappa_{q, t})}.
+\end{align}
+After plugging the first-order conditions into the HJB, I obtain
+\begin{align*}
+  0 & = \log\left(\rho_e + \nu_e\right)  + \xi_{e, t}(\mu_{\xi e, t} + \lambda \kappa_{\xi e, t} - (\rho_e + \nu_e)) \\
+    &\quad+ \frac{1}{\rho_e + \nu_e}\left(dr_{f, t} + \varphi_{e, t}^2(\sigma + \sigma_{q, t})^2 + \lambda\frac{\kappa_{Ne, t}}{1 - \kappa_{Ne, t}}  - (\rho_e + \nu_e) - \frac{1}{2}\varphi_{e, t}(\sigma + \sigma_{q, t})^2 + \lambda\log(1 - \kappa_{Ne, t}) \right)\\
+  0 & = (\rho_e + \nu_e)\log\left(\rho_e + \nu_e\right)  + (\rho_e + \nu_e)\xi_{e, t}(\mu_{\xi e, t} + \lambda \kappa_{\xi e, t} - (\rho_e + \nu_e)) \\
+    &\quad + dr_{f, t}  - (\rho_e + \nu_e) + \frac{\varphi_{e, t}^2}{2}(\sigma + \sigma_{q, t})^2\\
+    &\quad + \lambda\left(\frac{\varphi_{e, t}}{1 - \varphi_{e, t}(\kappa + \kappa_{q, t} + \kappa\kappa_{q, t})} + \log(1 - \varphi_{e, t} (\kappa + \kappa_{q, t} + \kappa \kappa_{q, t}))\right).
+\end{align*}
+
+\subsubsection{State Variables}
+The two state variables are $\eta_t\equiv N_{e, t} / (q_t K_t)$ and $K_t$. Because of the linear homogeneity in agents' decision rules, the economy evolves on a balanced growth path, so all equilibrium quantities can be solved as functions of $\eta_t$ alone. The additional state $K_t$ is required only to determine the actual levels of quantities, such as output.
+
+\paragraph{Recursive Preferences}
+
+The aggregate law of motion for experts' net worth is
+\begin{align*}
+  \frac{dN_{e, t}}{N_{e, t}} & = dr_{f, t} + \left(\gamma_e \varphi_{e, t}^2( \sigma + \sigma_{q, t})^2 + (\gamma_e - 1)\varphi_{e, t}\sigma_{\xi e, t} ( \sigma + \sigma_{q, t}) - \xi_{e, t}^{1 - \psi_e}\mathbbm{1}_{\psi_e\neq 1} - (\rho_e + \nu_e)\mathbbm{1}_{\psi_e = 1}  \right)\, dt\\
+                             &\quad + (\lambda\varphi_{e, t}(\kappa + \kappa_{q, t} - \kappa\kappa_{q, t})(1 + \kappa_{\xi e, t})^{ 1 - \gamma_e}(1 - \varphi_{e, t}(\kappa + \kappa_{q, t} - \kappa\kappa_{q, t}))^{ - \gamma_e})\, dt\\
+                             &\quad + \varphi_{e, t}(\sigma + \sigma_{q, t})\, dW_t - \varphi_{e, t}(\kappa + \kappa_{q, t} - \kappa \kappa_{q, t})\, dJ_t.
+\end{align*}
+By Ito's product rule,
+\begin{align*}
+  \frac{d(q_tK_t)}{q_tK_t} & = (\mu_{q, t} + \Phi(\iota_t) - \delta + \sigma\sigma_{q, t})\, dt + (\sigma + \sigma_{q, t})\, dW_t - (\kappa + \kappa_{q, t} - \kappa\kappa_{q, t})\, dJ_t.
+\end{align*}
+Note that I use $\Phi(\iota_t)$ for the growth term rather than $\varphi_{e, t}\Phi(\iota_{e, t}) N_{e, t}/ q_t + \varphi_{h, t}\Phi(\iota_{h, t}) N_{h, t} / q_t$. Because experts' FOC for $\iota_{e, t}$ depends only on the market price of capital $q_t$, experts will invest the same quantity as households. To reduce notation, I denote the rate of internal investment by the common quantity $\iota_t$.
+
+By Ito's lemma, for a process of the form $dx_t/x_t = \mu_{x, t}\, dt + \sigma_{x, t}\, dW_t - \kappa_{x, t}\, dJ_t$, the reciprocal follows
+\begin{align*}
+  d(1 / x_t) & = -\frac{1}{x_t^2}\mu_{x, t}x_t\, dt + \frac{1}{2} \frac{2}{x_t^3}\, (\sigma_{x, t}x_t)^2\, dt - \frac{1}{x_t^2}\sigma_{x, t}x_t\, dW_t +\left(\frac{1}{(1 - \kappa_{x, t})x_t} - \frac{1}{x_t}\right)\, dJ_t\\
+             & = \left(-\frac{1}{x_t}\mu_{x, t} +  \frac{1}{x_t}\, \sigma_{x, t}^2\right) \, dt - \frac{1}{x_t}\sigma_{x, t}\, dW_t +\frac{1}{x_t}\left(\frac{1}{1 - \kappa_{x, t}} - 1\right)\, dJ_t\\
+\frac{d(1 / x_t)}{1 / x_t} & = \left(\sigma_{x, t}^2-\mu_{x, t} \right) \, dt - \sigma_{x, t}\, dW_t + \frac{\kappa_{x, t}}{1 - \kappa_{x, t}}\, dJ_t.
+\end{align*}
+Thus, the reciprocal of aggregate wealth evolves according to
+\begin{align*}
+\frac{d(1/(q_tK_t))}{1  / (q_tK_t)} & = ((\sigma + \sigma_{q, t})^2 - (\mu_{q, t} + \Phi(\iota_t) - \delta + \sigma\sigma_{q, t}))\, dt\\
+                                    &\quad - (\sigma + \sigma_{q, t})\, dW_t + \frac{\kappa + \kappa_{q, t} - \kappa\kappa_{q, t}}{1 - (\kappa + \kappa_{q, t} - \kappa\kappa_{q, t})}\, dJ_t.
+\end{align*}
+By (\ref{eq:leverage FOC}),
+\begin{align*}
+  -(\mu_{q, t} + \Phi(\iota_t) - \delta + \sigma\sigma_{q, t}) & = \frac{a_e - \iota_{e, t}}{q_t} - dr_{f, t}  -\gamma_e\varphi_{e, t}(\sigma + \sigma_{q, t}) - (\gamma_e - 1)\sigma_{\xi e, t}(\sigma + \sigma_{q, t})\\
+                                                               &\quad - \lambda(\kappa + \kappa_{q, t} - \kappa\kappa_{q, t})(1 + \kappa_{\xi e, t})^{1 - \gamma_e}(1 - \varphi_{e, t}(\kappa + \kappa_{q, t} - \kappa\kappa_{q, t}))^{ - \gamma_e}.
+\end{align*}
+It follows that
+\begin{align*}
+\frac{d(1/(q_tK_t))}{1  / (q_tK_t)} & = \left((\sigma + \sigma_{q, t})^2 + \frac{a_e - \iota_{e, t}}{q_t} - dr_{f, t}  -\gamma_e\varphi_{e, t}(\sigma + \sigma_{q, t})^2 - (\gamma_e - 1)\sigma_{\xi e, t}(\sigma + \sigma_{q, t})\right)\, dt\\
+                                    &\quad  - \lambda(\kappa + \kappa_{q, t} - \kappa\kappa_{q, t})(1 + \kappa_{\xi e, t})^{1 - \gamma_e}(1 - \varphi_{e, t}(\kappa + \kappa_{q, t} - \kappa\kappa_{q, t}))^{ - \gamma_e}\, dt\\
+                                    &\quad- (\sigma + \sigma_{q, t})\, dW_t + \frac{\kappa + \kappa_{q, t} - \kappa\kappa_{q, t}}{1 - (\kappa + \kappa_{q, t} - \kappa\kappa_{q, t})}\, dJ_t.
+\end{align*}
+By Ito's product rule, $\eta_t$ can be expressed as a jump diffusion of the form
+\begin{align*}
+  \frac{d\eta_t}{\eta_t} & = \mu_{\eta, t}\, dt + \sigma_{\eta, t}\, dW_t  - \kappa_{\eta, t}\, dJ_t.
+\end{align*}
+First, I consider the volatility and jump size terms.
+\begin{align*}
+  \sigma_{\eta, t} & = (\varphi_{e, t} - 1)(\sigma + \sigma_{q, t})\\
+-  \kappa_{\eta, t} & = -\varphi_{e, t}(\kappa + \kappa_{q, t} - \kappa\kappa_{q, t}) + \frac{\kappa + \kappa_{q, t} - \kappa\kappa_{q, t}}{1 - (\kappa + \kappa_{q, t} - \kappa\kappa_{q, t})} - \varphi_{e, t}\frac{(\kappa + \kappa_{q, t} - \kappa\kappa_{q, t})^2}{1 - (\kappa + \kappa_{q, t} - \kappa\kappa_{q, t})}\\
+                   & = \frac{-\varphi_{e, t}(1 - (\kappa + \kappa_{q, t} - \kappa\kappa_{q, t})) (\kappa + \kappa_{q, t} - \kappa\kappa_{q, t}) +(\kappa + \kappa_{q, t} - \kappa\kappa_{q, t}) - \varphi_{e, t}(\kappa + \kappa_{q, t} - \kappa\kappa_{q, t})^2}{1 - (\kappa + \kappa_{q, t} - \kappa\kappa_{q, t})}\\
+                   & =  \frac{(1 - \varphi_{e, t})(\kappa + \kappa_{q, t} - \kappa\kappa_{q, t})}{1 - (\kappa + \kappa_{q, t} - \kappa\kappa_{q, t})}\\
+                   & =  -\frac{(\varphi_{e, t} - 1)(\kappa + \kappa_{q, t} - \kappa\kappa_{q, t})}{1 - (\kappa + \kappa_{q, t} - \kappa\kappa_{q, t})}.
+\end{align*}
+The drift term becomes
+\begin{align*}
+\mu_{\eta, t} & = dr_{f, t} + \left(\gamma_e \varphi_{e, t}^2( \sigma + \sigma_{q, t})^2 + (\gamma_e - 1)\varphi_{e, t}\sigma_{\xi e, t} ( \sigma + \sigma_{q, t}) - \xi_{e, t}^{1 - \psi_e}\mathbbm{1}_{\psi_e\neq 1} - (\rho_e + \nu_e)\mathbbm{1}_{\psi_e = 1}  \right)\\
+              &\quad + (\lambda\varphi_{e, t}(\kappa + \kappa_{q, t} - \kappa\kappa_{q, t})(1 + \kappa_{\xi e, t})^{ 1 - \gamma_e}(1 - \varphi_{e, t}(\kappa + \kappa_{q, t} - \kappa\kappa_{q, t}))^{ - \gamma_e})\\\
+              &\quad  + \left((\sigma + \sigma_{q, t})^2 + \frac{a_e - \iota_{e, t}}{q_t} - dr_{f, t}  -\gamma_e\varphi_{e, t}(\sigma + \sigma_{q, t})^2 - (\gamma_e - 1)\sigma_{\xi e, t}(\sigma + \sigma_{q, t})\right)\\
+              &\quad  - (\lambda(\kappa + \kappa_{q, t} - \kappa\kappa_{q, t})(1 + \kappa_{\xi e, t})^{1 - \gamma_e}(1 - \varphi_{e, t}(\kappa + \kappa_{q, t} - \kappa\kappa_{q, t}))^{ - \gamma_e} + \varphi_{e, t}(\sigma + \sigma_{q, t})^2)\\
+              & =\gamma_e\varphi_{e, t}(\varphi_{e, t} - 1)(\sigma + \sigma_{q, t})^2 + (\gamma_e - 1)(\varphi_{e, t} - 1)\sigma_{\xi e, t}( \sigma + \sigma_{q, t})  - (\varphi_{e, t} - 1)(\sigma + \sigma_{q, t})^2\\
+              &\quad + \frac{a_e - \iota_{e, t}}{q_t}- \xi_{e, t}^{1 - \psi_e}\mathbbm{1}_{\psi_e\neq 1} - (\rho_e + \nu_e)\mathbbm{1}_{\psi_e = 1}\\
+              &\quad + \lambda (\varphi_{e, t} - 1)(\kappa + \kappa_{q, t} - \kappa\kappa_{q, t})(1 + \kappa_{\xi e, t})^{1 - \gamma_e}(1 - \varphi_{e, t}(\kappa + \kappa_{q, t} - \kappa\kappa_{q, t}))^{ - \gamma_e}\\
+              & = \frac{a_e - \iota_{e, t}}{q_t}- \xi_{e, t}^{1 - \psi_e}\mathbbm{1}_{\psi_e\neq 1} - (\rho_e + \nu_e)\mathbbm{1}_{\psi_e = 1} \\
+              &\quad +  (\varphi_{e, t} - 1)((\gamma_e\varphi_{e, t} - 1)(\sigma + \sigma_{q, t})^2 + (\gamma_e - 1)\sigma_{\xi e, t}(\sigma + \sigma_{q, t}))\\
+              &\quad + \lambda (\varphi_{e, t} - 1)(\kappa + \kappa_{q, t} - \kappa\kappa_{q, t})(1 + \kappa_{\xi e, t})^{1 - \gamma_e}(1 - \varphi_{e, t}(\kappa + \kappa_{q, t} - \kappa\kappa_{q, t}))^{ - \gamma_e}
+\end{align*}
+
+To summarize, the law of motion for the state variable $\eta_t$ is
+\begin{align}\label{eq:law of motion for eta}
+\frac{d\eta_t}{\eta_t} = \mu_{\eta, t}\, dt + \sigma_{\eta, t}\, dW_t - \kappa_{\eta, t}\, dJ_t,
+\end{align}
+where
+\begin{align}
+\label{eq:drift of eta}  \begin{split}
+  \mu_{\eta, t} & =  \frac{a_e - \iota_{e, t}}{q_t}- \xi_{e, t}^{1 - \psi_e}\mathbbm{1}_{\psi_e\neq 1} - (\rho_e + \nu_e)\mathbbm{1}_{\psi_e = 1} \\
+              &\quad +  (\varphi_{e, t} - 1)((\gamma_e\varphi_{e, t} - 1)(\sigma + \sigma_{q, t})^2 + (\gamma_e - 1)\sigma_{\xi e, t}(\sigma + \sigma_{q, t}))\\
+              &\quad + \lambda (\varphi_{e, t} - 1)(\kappa + \kappa_{q, t} - \kappa\kappa_{q, t})(1 + \kappa_{\xi e, t})^{1 - \gamma_e}(1 - \varphi_{e, t}(\kappa + \kappa_{q, t} - \kappa\kappa_{q, t}))^{ - \gamma_e},\\
+  \end{split}\\
+  \sigma_{\eta, t} & = (\varphi_{e, t} - 1)(\sigma + \sigma_{q, t}),\label{eq:volatility of eta}\\
+  \kappa_{\eta, t} & = (\varphi_{e, t} - 1)\frac{(\kappa + \kappa_{q, t} - \kappa\kappa_{q, t})}{1 - (\kappa + \kappa_{q, t} - \kappa\kappa_{q, t})}\label{eq:jump size of eta}.
+\end{align}
+
+\paragraph{Log Utility}
+
+In the case of log utility, the processes are simpler.
+
+
+\section{Numerical Algorithm}
+\label{sec:numerical}
+For this section, I suppress all time subscripts unless explicitly required.
+
+\subsection{Equilibrium Conditions}
+Equilibrium is characterized by a system of functional equations and algebraic constraints. In the case of no jumps, these equations reduce to a system of differential algebraic equations.
+
+\paragraph{Algebraic Equations}
+
+Market-clearing for consumption and capital are two equilibrium conditions that can be expressed as algebraic constraints.
+To write the market-clearing condition for consumption, I need to specify a functional form for $\Phi(\cdot)$. Following the literature, I use the form
+\begin{equation}
+  \label{eq:Phi functional form}
+\Phi(\iota)  = \frac{\chi_1}{\chi_2} \log(\chi_2\iota + 1),
+\end{equation}
+This functional form yields the first-order condition
+\begin{align*}
+  \frac{\chi_1}{\chi_2\iota + 1} & = \frac{1}{q},
+\end{align*}
+hence internal investment satisfies
+\begin{align}
+  \label{eq:internal investment as function of q}
+\iota(q) & = \frac{\chi_1q - 1}{\chi_2}, \\
+\label{eq:Phi as function of q}
+\Phi(q) & = \frac{\chi_1}{\chi_2}\log(\chi_1 q).
+\end{align}
+
+Using (\ref{eq:Phi functional form}), the market-clearing condition for consumption is
+\begin{align*}
+& N_e(\xi_e^{1 - \psi_e}\mathbbm{1}_{\psi_e\neq 1} + (\rho_e + \nu_e)\mathbbm{1}_{\psi_e =1})+  N_h(\xi_h^{1 - \psi_h}\mathbbm{1}_{\psi_h\neq 1} + (\rho_h + \nu_h)\mathbbm{1}_{\psi_h = 1})\\
+& =a_e\varphi_e \frac{N_e}{q} + a_h\varphi_h \frac{N_h}{q} - \iota K\\
+& q(\eta(\xi_e^{1 - \psi_e}\mathbbm{1}_{\psi_e\neq 1} + (\rho_e + \nu_e)\mathbbm{1}_{\psi_e =1}) + (1 - \eta)(\xi_h^{1 - \psi_h}\mathbbm{1}_{\psi_h\neq 1} + (\rho_h + \nu_h)\mathbbm{1}_{\psi_h = 1}))\\
+& =a_e\varphi_e\eta  + a_h\varphi_h (1 - \eta)  - \frac{\chi_1}{\chi_2}q + \frac{1}{\chi_2}.
+\end{align*}
+This equation re-arranges to %q = \frac{\chi_2 (a_e\varphi_e\eta  + a_h\varphi_h (1 - \eta))   + 1}{\chi_2(\eta(\xi_e^{1 - \psi_e}\mathbbm{1}_{\psi_e\neq 1} + (\rho_e + \nu_e)\mathbbm{1}_{\psi_e =1}) + (1 - \eta)(\xi_h^{1 - \psi_h}\mathbbm{1}_{\psi_h\neq 1} + (\rho_h + \nu_h)\mathbbm{1}_{\psi_h = 1})) + \chi_1}% \frac{ a_e\varphi_e\eta  + a_h\varphi_h (1 - \eta)   + \frac{1}{\chi_2}}{\eta(\xi_e^{1 - \psi_e}\mathbbm{1}_{\psi_e\neq 1} + (\rho_e + \nu_e)\mathbbm{1}_{\psi_e =1}) + (1 - \eta)(\xi_h^{1 - \psi_h}\mathbbm{1}_{\psi_h\neq 1} + (\rho_h + \nu_h)\mathbbm{1}_{\psi_h = 1}) + \frac{\chi_1}{\chi_2}}
+\begin{equation}
+  \label{eq:q closed form}
+    q  =
+    \begin{cases}
+      \frac{\chi_2(a_e \varphi_e \eta + a_h \varphi_h(1 - \eta)) + 1}{\chi_2((\rho_e + \nu_e) \eta + ( \rho_h + \nu_h)(1 - \eta)) + \chi_1} & \text{if }\psi = 1,\\
+      \frac{\chi_2(a_e \varphi_e \eta + a_h \varphi_h(1 - \eta)) + 1}{\chi_2( \xi_e^{1 - \psi_e} \eta + \psi_h^{1 - \psi_h}(1 -  \eta)) + \chi_1} & \text{if }\psi \neq 1.\\
+    \end{cases}
+\end{equation}
+
+
+The market-clearing condition for capital is
+\begin{align*}
+  \varphi_e \frac{N_e }{q} + \varphi_h\frac{N_h}{q} & = K,
+\end{align*}
+so dividing by $K$ yields
+\begin{align*}
+  \varphi_e\eta + \varphi_h(1 - \eta) & = 1.
+\end{align*}
+Rearranging yields
+\begin{equation}\label{eq:household leverage as function of experts leverage and eta }
+  \varphi_h = \frac{1 - \varphi_e\eta}{1 - \eta}.
+\end{equation}
+
+\paragraph{Functional Equations}
+The three functional equations are an asset pricing condition and the HJBs for experts and households. To write these conditions, I first verify my conjecture that $q$, $\xi_e$, and $\xi_h$ are jump diffusions. I accomplish this by conjecturing these objects are functions of $\eta$ and applying Ito's lemma.
+\begin{align*}
+  \frac{dq(\eta)}{q(\eta)} & = \left(\frac{q'(\eta)}{q(\eta)}\mu_\eta\eta + \frac{1}{2}\frac{q''(\eta)}{q(\eta)}(\sigma_\eta\eta)^2 \right)\, dt +\frac{ q'(\eta)}{q(\eta)}\sigma_\eta\eta\, dW_t + \left(\frac{q((1 - \kappa_\eta)\eta)}{q(\eta)} - 1\right)\, dJ_t,\\
+  \frac{d\xi_e(\eta)}{\xi_e(\eta)} & = \left(\frac{\xi_e'(\eta)}{\xi_e(\eta)}\mu_\eta\eta + \frac{1}{2}\frac{\xi_e''(\eta)}{\xi_e(\eta)}(\sigma_\eta\eta)^2 \right)\, dt +\frac{ \xi_e'(\eta)}{\xi_e(\eta)}\sigma_\eta\eta\, dW_t + \left(\frac{\xi_e((1 - \kappa_\eta)\eta)}{\xi_e(\eta)} - 1\right)\, dJ_t,\\
+  \frac{d\xi_h(\eta)}{\xi_h(\eta)} & = \left(\frac{\xi_h'(\eta)}{\xi_h(\eta)}\mu_\eta\eta + \frac{1}{2}\frac{\xi_h''(\eta)}{\xi_h(\eta)}(\sigma_\eta\eta)^2 \right)\, dt +\frac{ \xi_h'(\eta)}{\xi_h(\eta)}\sigma_\eta\eta\, dW_t + \left(\frac{\xi_h((1 - \kappa_\eta)\eta)}{\xi_h(\eta)} - 1\right)\, dJ_t.
+\end{align*}
+The unknown $\sigma_q$ satisfies the fixed point
+\begin{align*}
+\sigma_q & = \frac{q'}{q} \eta(\varphi_e - 1)(\sigma + \sigma_q),
+\end{align*}
+which simplifies to
+\begin{equation}\label{eq:sigma q closed form}
+  \sigma_q = \frac{q'\eta(\varphi_e - 1)\sigma}{q - q'\eta(\varphi_e - 1)},
+\end{equation}
+and the unknown $\kappa_q$ satisfies the fixed point
+\begin{align}\label{eq:kappa q fixed point}
+  \kappa_q & = \frac{q\left(\left(\eta - \eta(\varphi_e - 1)\frac{\kappa + \kappa_q - \kappa\kappa_q}{1 - (\kappa + \kappa_q - \kappa\kappa_q)}\right)\right)}{q(\eta)} - 1.
+\end{align}
+Similarly, $\sigma_{\xi e}$, $\sigma_{\xi h}$, $\kappa_{\xi e}$, and $\kappa_{\xi h}$ yield the fixed points
+\begin{align}
+\label{eq:sigma xi e closed form}
+  \sigma_{\xi e} & = \frac{\xi_e'\eta(\varphi_e - 1)\sigma}{\xi_e - \xi_e'\eta(\varphi_e - 1)},\\
+\label{eq:sigma xi h closed form}
+  \sigma_{\xi h} & = \frac{\xi_h'\eta(\varphi_e - 1)\sigma}{\xi_h - \xi_h'\eta(\varphi_e - 1)},\\
+\label{eq:kappa xi e closed form}
+  \kappa_{\xi e} & = \frac{\xi_e\left(\left(\eta - \eta(\varphi_e - 1)\frac{\kappa + \kappa_{\xi e} - \kappa\kappa_{\xi e}}{1 - (\kappa + \kappa_{\xi e} - \kappa\kappa_{\xi e})}\right)\right)}{\xi_e(\eta)} - 1,\\
+\label{eq:kappa xi h closed form}
+  \kappa_{\xi h} & = \frac{\xi_h\left(\left(\eta - \eta(\varphi_e - 1)\frac{\kappa + \kappa_{\xi h} - \kappa\kappa_{\xi h}}{1 - (\kappa + \kappa_{\xi h} - \kappa\kappa_{\xi h})}\right)\right)}{\xi_h(\eta)} - 1.
+\end{align}
+
+
+The equilibrium asset pricing condition is obtained by differencing experts' and households' FOCs, which yields
+\begin{align}\label{eq:asset pricing cond}
+\begin{split}
+  \frac{a_e - a_h}{q} & \geq (\gamma_e\varphi_e - \gamma_h\varphi_h)(\sigma + \sigma_q)^2 + ((\gamma_e - 1) \sigma_{\xi e} - (\gamma_h - 1)\sigma_{\xi h})(\sigma + \sigma_q)\\
+  &\quad + \lambda(\kappa + \kappa_q - \kappa\kappa_q)(1 + \kappa_{\xi e})^{ 1- \gamma_e}(1 - \varphi_e(\kappa + \kappa_q - \kappa\kappa_q))\\
+  &\quad - \lambda(\kappa + \kappa_q - \kappa\kappa_q)(1 + \kappa_{\xi h})^{ 1- \gamma_h}(1 - \varphi_h(\kappa + \kappa_q - \kappa\kappa_q))
+\end{split}
+\end{align}
+The inequality binds when $\varphi_h > 0$ is slack when $\varphi_e = 1$.
+
+Note that in the case of log utility for both agents, this asset pricing condition simplifies to
+
+
+Experts' HJB yields the equilibrium condition
+\begin{align*}
+0      & = \left(\xi_e^{1 - \psi_e}\frac{1 / \psi_e}{1 - 1/\psi_e}  - \frac{\rho_e + \nu_e}{1 - 1 / \psi_e} \right)\mathbbm{1}_{\psi\neq 1} + (\rho_e + \nu_e)\left(\log\left(\frac{\rho_e + \nu_e}{\xi_e}\right) - 1\right)\mathbbm{1}_{\psi_e = 1}\\
+    &\quad + dr_{f, t} - \frac{\lambda}{1 - \gamma_e} + \mu_{\xi e} - \frac{\gamma_e}{2}\sigma_{\xi e}^2 +\frac{\gamma_e}{2}((\varphi_e(\sigma + \sigma_{q, t}))^2\\
+    &\quad + \frac{\lambda}{1 - \gamma_e}(1 + \kappa_{\xi e})^{1 - \gamma_e}(1 - \varphi_e(\kappa + \kappa_{q, t} - \kappa \kappa_{q, t}))^{ - \gamma_e}\left(1 - \gamma_e\varphi_e(\kappa + \kappa_{q, t} - \kappa\kappa_{q, t})\right)
+\end{align*}
+
+
+Given the market clearing conditions for consumption and capital, the unknowns are $q$, $\varphi_e$, $\xi_e$, and $\xi_h$, with the latter two quantities only relevant if recursive preferences are used. The four equilibrium conditions pinning these quantities down are (\ref{eq:q closed form}),
+
+
+\subsection{Transformed Equilibrium Conditions}
+Can either directly solve the HJB problem, or we can transform the value functions further using the approach of Brunnermeier-Sannikov (2016). It is worthwhile trying both to see which is faster for convergence or is more numerically stable. By default though, we will use the HJB approach since that seems to be Di Tella's preferred approach.
+
+
+
+
+
+
+
+
+\end{document}
