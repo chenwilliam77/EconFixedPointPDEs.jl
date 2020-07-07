@@ -565,7 +565,24 @@ where
 
 \paragraph{Log Utility}
 
-In the case of log utility, the processes are simpler.
+In the case of log utility, the processes are simpler. The law of motion for $N_{e, t}$ becomes
+\begin{align*}
+  \frac{dN_{e, t}}{N_{e, t}} & = dr_{f, t} + \left(\varphi_{e, t}^2(\sigma + \sigma_{q, t})^2 - (\rho_e + \nu_e) +\lambda\frac{ \varphi_{e, t}(\kappa + \kappa_{q, t} - \kappa\kappa_{q, t})}{1 - \varphi_{e, t} (\kappa + \kappa_{q, t} - \kappa\kappa_{q, t})}\right)\, dt \\
+                             &\quad + \varphi_{e, t}(\sigma + \sigma_{q, t})\, dW_t - \varphi_{e, t}(\kappa + \kappa_{q, t} - \kappa\kappa_{q, t})\, dJ_t.
+\end{align*}
+The law of motion for the recpirocal of aggregate wealth becomes
+\begin{align*}
+\frac{d (1 / (q_tK_t))}{1 / (q_tK_t)} & = \left( (\sigma + \sigma_{q, t})^2 + \frac{a_e - \iota_{e, t}}{q_t} - dr_{f, t} - \varphi_{e, t}(\sigma + \sigma_{q, t})^2 - \lambda\frac{\kappa + \kappa_{q, t} - \kappa\kappa_{q, t}}{1 - \varphi_{e, t}(\kappa + \kappa_{q, t} - \kappa\kappa_{q, t})} \right)\, dt\\
+                                      & \quad - (\sigma + \sigma_{q, t})\, dW_t + \frac{\kappa + \kappa_{q, t} - \kappa\kappa_{q, t}}{ 1 - (\kappa + \kappa_{q, t} - \kappa\kappa_{q, t})}\, dJ_t.
+\end{align*}
+By Ito's product rule, $\eta_t$ follows a jump diffusion with the same form as (\ref{eq:law of motion for eta}), but where
+\begin{align}
+  \label{eq:drift of eta log utility}  \begin{split}
+  \mu_{\eta, t} & =  \frac{a_e - \iota_{e, t}}{q_t} - (\rho_e + \nu_e) +  (\varphi_{e, t} - 1)^2(\sigma + \sigma_{q, t})^2  + \lambda \frac{(\varphi_{e, t} - 1)(\kappa + \kappa_{q, t} - \kappa\kappa_{q, t})}{1 - \varphi_{e, t}(\kappa + \kappa_{q, t} - \kappa\kappa_{q, t})},
+  \end{split}\\
+  \sigma_{\eta, t} & = (\varphi_{e, t} - 1)(\sigma + \sigma_{q, t}),\label{eq:volatility of eta log utility}\\
+  \kappa_{\eta, t} & = (\varphi_{e, t} - 1)\frac{(\kappa + \kappa_{q, t} - \kappa\kappa_{q, t})}{1 - (\kappa + \kappa_{q, t} - \kappa\kappa_{q, t})}\label{eq:jump size of eta log utility}.
+\end{align}
 
 
 \section{Numerical Algorithm}
@@ -645,20 +662,20 @@ and the unknown $\kappa_q$ satisfies the fixed point
 \begin{align}\label{eq:kappa q fixed point}
   \kappa_q & = \frac{q\left(\left(\eta - \eta(\varphi_e - 1)\frac{\kappa + \kappa_q - \kappa\kappa_q}{1 - (\kappa + \kappa_q - \kappa\kappa_q)}\right)\right)}{q(\eta)} - 1.
 \end{align}
-Similarly, $\sigma_{\xi e}$, $\sigma_{\xi h}$, $\kappa_{\xi e}$, and $\kappa_{\xi h}$ yield the fixed points
+The terms $\sigma_{\xi e}$, $\sigma_{\xi h}$, $\kappa_{\xi e}$, and $\kappa_{\xi h}$ are given by
 \begin{align}
 \label{eq:sigma xi e closed form}
-  \sigma_{\xi e} & = \frac{\xi_e'\eta(\varphi_e - 1)\sigma}{\xi_e - \xi_e'\eta(\varphi_e - 1)},\\
+  \sigma_{\xi e} & = \frac{\xi_e'}{\xi_e}\sigma_\eta\eta\\
 \label{eq:sigma xi h closed form}
-  \sigma_{\xi h} & = \frac{\xi_h'\eta(\varphi_e - 1)\sigma}{\xi_h - \xi_h'\eta(\varphi_e - 1)},\\
+  \sigma_{\xi h} & = \frac{\xi_h'}{\xi_h}\sigma_\eta\eta\\
 \label{eq:kappa xi e closed form}
-  \kappa_{\xi e} & = \frac{\xi_e\left(\left(\eta - \eta(\varphi_e - 1)\frac{\kappa + \kappa_{\xi e} - \kappa\kappa_{\xi e}}{1 - (\kappa + \kappa_{\xi e} - \kappa\kappa_{\xi e})}\right)\right)}{\xi_e(\eta)} - 1,\\
+  \kappa_{\xi e} & = \frac{\xi_e\left(\left(\eta - \eta(\varphi_e - 1)\frac{\kappa + \kappa_{q} - \kappa\kappa_{q}}{1 - (\kappa + \kappa_{q} - \kappa\kappa_{q})}\right)\right)}{\xi_e(\eta)} - 1,\\
 \label{eq:kappa xi h closed form}
-  \kappa_{\xi h} & = \frac{\xi_h\left(\left(\eta - \eta(\varphi_e - 1)\frac{\kappa + \kappa_{\xi h} - \kappa\kappa_{\xi h}}{1 - (\kappa + \kappa_{\xi h} - \kappa\kappa_{\xi h})}\right)\right)}{\xi_h(\eta)} - 1.
+  \kappa_{\xi h} & = \frac{\xi_h\left(\left(\eta - \eta(\varphi_e - 1)\frac{\kappa + \kappa_{q} - \kappa\kappa_{q}}{1 - (\kappa + \kappa_{q} - \kappa\kappa_{q})}\right)\right)}{\xi_h(\eta)} - 1.
 \end{align}
 
 
-The equilibrium asset pricing condition is obtained by differencing experts' and households' FOCs, which yields
+The equilibrium asset pricing condition is obtained by differencing experts' and households' FOCs for leverage, which yields
 \begin{align}\label{eq:asset pricing cond}
 \begin{split}
   \frac{a_e - a_h}{q} & \geq (\gamma_e\varphi_e - \gamma_h\varphi_h)(\sigma + \sigma_q)^2 + ((\gamma_e - 1) \sigma_{\xi e} - (\gamma_h - 1)\sigma_{\xi h})(\sigma + \sigma_q)\\
@@ -668,21 +685,189 @@ The equilibrium asset pricing condition is obtained by differencing experts' and
 \end{align}
 The inequality binds when $\varphi_h > 0$ is slack when $\varphi_e = 1$.
 
-Note that in the case of log utility for both agents, this asset pricing condition simplifies to
-
 
 Experts' HJB yields the equilibrium condition
-\begin{align*}
+\begin{equation}\label{eq:experts HJB eqcond}
+\begin{split}
 0      & = \left(\xi_e^{1 - \psi_e}\frac{1 / \psi_e}{1 - 1/\psi_e}  - \frac{\rho_e + \nu_e}{1 - 1 / \psi_e} \right)\mathbbm{1}_{\psi\neq 1} + (\rho_e + \nu_e)\left(\log\left(\frac{\rho_e + \nu_e}{\xi_e}\right) - 1\right)\mathbbm{1}_{\psi_e = 1}\\
     &\quad + dr_{f, t} - \frac{\lambda}{1 - \gamma_e} + \mu_{\xi e} - \frac{\gamma_e}{2}\sigma_{\xi e}^2 +\frac{\gamma_e}{2}((\varphi_e(\sigma + \sigma_{q, t}))^2\\
-    &\quad + \frac{\lambda}{1 - \gamma_e}(1 + \kappa_{\xi e})^{1 - \gamma_e}(1 - \varphi_e(\kappa + \kappa_{q, t} - \kappa \kappa_{q, t}))^{ - \gamma_e}\left(1 - \gamma_e\varphi_e(\kappa + \kappa_{q, t} - \kappa\kappa_{q, t})\right)
-\end{align*}
+    &\quad + \frac{\lambda}{1 - \gamma_e}(1 + \kappa_{\xi e})^{1 - \gamma_e}(1 - \varphi_e(\kappa + \kappa_{q, t} - \kappa \kappa_{q, t}))^{ - \gamma_e}\left(1 - \gamma_e\varphi_e(\kappa + \kappa_{q, t} - \kappa\kappa_{q, t})\right).
+\end{split}
+\end{equation}
+From experts' FOC for leverage,
+\begin{equation}\label{eq:risk-free interest rate}
+  \begin{split}
+  dr_f & = \frac{a_e - \iota_e}{q} + \mu_q + \Phi(\iota_e) - \delta + \sigma\sigma_q\\
+            &\quad - \gamma_e\varphi_e(\sigma + \sigma_q)^2 - (\gamma_e - 1)\sigma_{\xi e}(\sigma + \sigma_q)\\
+            &\quad - \lambda(\kappa + \kappa_q - \kappa\kappa_q)(1 + \kappa_{\xi e})^{ 1- \gamma_e}(1 - \varphi_e (\kappa + \kappa_q - \kappa\kappa_q))^{ - \gamma_e}.
+  \end{split}
+\end{equation}
+The remaining quantities in experts' HJB are known, given (\ref{eq:risk-free interest rate}). Households' HJB is similarly given by
+\begin{equation}\label{eq:hh HJB eqcond}
+  \begin{split}
+    0      & = \left(\xi_h^{1 - \psi_h}\frac{1 / \psi_h}{1 - 1/\psi_h}  - \frac{\rho_h + \nu_h}{1 - 1 / \psi_h} \right)\mathbbm{1}_{\psi\neq 1} + (\rho_h + \nu_h)\left(\log\left(\frac{\rho_h + \nu_h}{\xi_h}\right) - 1\right)\mathbbm{1}_{\psi_h = 1}\\
+    &\quad + dr_f - \frac{\lambda}{1 - \gamma_h} + \mu_{\xi h} - \frac{\gamma_h}{2}\sigma_{\xi h}^2 +\frac{\gamma_h}{2}((\varphi_h(\sigma + \sigma_{q, t}))^2\\
+    &\quad + \frac{\lambda}{1 - \gamma_h}(1 + \kappa_{\xi h})^{1 - \gamma_h}(1 - \varphi_h(\kappa + \kappa_{q, t} - \kappa \kappa_{q, t}))^{ - \gamma_h}\left(1 - \gamma_h\varphi_h(\kappa + \kappa_{q, t} - \kappa\kappa_{q, t})\right).
+  \end{split}
+\end{equation}
+As a check, during computation, I can also verify that these HJBs agree with the HJBs when FOCs for leverage and consumption are not substituted. For experts, the HJB is
+\begin{align}
+\label{eq:expert HJB no sub lvg FOC}
+  \begin{split}
+0      & =\left[ \frac{\left(\frac{1}{\xi_e}\frac{C_e}{N_e}\right)^{1 - 1/\psi_e} - (\rho_e + \nu_e) }{1 - 1/\psi_e} - \frac{C_e}{N_e}\right]\mathbbm{1}_{\psi_e\neq 1} + \left[(\rho_e + \nu_e)\log\left(\frac{1}{\xi_e}\frac{C_e}{N_e} \right) - \frac{C_e}{N_e}\right]\mathbbm{1}_{\psi_e = 1}\\
+    &\quad + dr_f + \varphi_e\left(\frac{a_e - \iota_e}{q} + \mu_q + \Phi(\iota_e) - \delta + \sigma\sigma_q - dr_f\right)\\
+    & \quad - \frac{\gamma_e}{2}(\sigma_{\xi e}^2 + (\varphi_e(\sigma + \sigma_q))^2) + (1 - \gamma_e)\sigma_{\xi e}\varphi_e(\sigma + \sigma_q)\\
+    & \quad - \frac{\lambda}{1 - \gamma_e}((( 1 + \kappa_{\xi e})(1 - \varphi_e(\kappa + \kappa_q - \kappa\kappa_q)))^{1 - \gamma_e} - 1),
+\end{split}
+\end{align}
+where the consumption FOC  (\ref{eq:consumption FOC})  pins down the consumption to wealth ratio $C_e / N_e$, and the leverage FOC (\ref{eq:leverage FOC}) pins down the expected excess returns from capital, conditional on no jumps. Similarly, households have the HJB
+\begin{align}
+\label{eq:hh HJB no sub lvg FOC}
+  \begin{split}
+0      & =\left[ \frac{\left(\frac{1}{\xi_h}\frac{C_h}{N_h}\right)^{1 - 1/\psi_h} - (\rho_h + \nu_h) }{1 - 1/\psi_h} - \frac{C_h}{N_h}\right]\mathbbm{1}_{\psi_h\neq 1} + \left[(\rho_h + \nu_h)\log\left(\frac{1}{\xi_h}\frac{C_h}{N_h} \right) - \frac{C_h}{N_h}\right]\mathbbm{1}_{\psi_h = 1}\\
+    &\quad + dr_f + \varphi_h\left(\frac{a_h - \iota_h}{q} + \mu_q + \Phi(\iota_h) - \delta + \sigma\sigma_q - dr_f\right)\\
+    & \quad - \frac{\gamma_h}{2}(\sigma_{\xi e}^2 + (\varphi_h(\sigma + \sigma_q))^2) + (1 - \gamma_h)\sigma_{\xi e}\varphi_h(\sigma + \sigma_q)\\
+    & \quad - \frac{\lambda}{1 - \gamma_h}((( 1 + \kappa_{\xi e})(1 - \varphi_h(\kappa + \kappa_q - \kappa\kappa_q)))^{1 - \gamma_h} - 1),
+\end{split}
+\end{align}
+where households have a similar consumption FOC pinning down $C_h / N_h$ and $\varphi_h$ is zero whenever households' leverage FOC is slack.
 
-
-Given the market clearing conditions for consumption and capital, the unknowns are $q$, $\varphi_e$, $\xi_e$, and $\xi_h$, with the latter two quantities only relevant if recursive preferences are used. The four equilibrium conditions pinning these quantities down are (\ref{eq:q closed form}),
 
 
 \subsection{Transformed Equilibrium Conditions}
+The previous section shows that solving equilibrium reduces to solving four unknowns  $q$, $\varphi_e$, $\xi_e$, and $\xi_h$. The latter two quantities are required to characterize positive dynamics if recursive preferences are used, but with log utility, $\xi_e$ and $\xi_h$ are only used to calculate welfare.  The four equilibrium conditions pinning these quantities down are (\ref{eq:q closed form}), (\ref{eq:asset pricing cond}), (\ref{eq:experts HJB eqcond}), and (\ref{eq:hh HJB eqcond}). For computational reasons, it is useful to transform $\xi_e$ and $\xi_h$ when $\psi_e \neq 1$ and/or $\psi_h\neq 1$. Rather than solve directly for $\xi_e$ and $\xi_h$, I solve for
+\begin{align}
+\label{eq:ve transform}
+  v_e &  = \xi_e^{\psi_e - 1}\mathbbm{1}_{\psi_e \neq 1} + \xi_e\mathbbm{1}_{\psi_e = 1},\\
+\label{eq:vh transform}
+  v_h & = \xi_h^{\psi_e - 1}\mathbbm{1}_{\psi_h \neq 1} + \xi_h\mathbbm{1}_{\psi_h = 1},
+\end{align}
+so that $\xi_e^{1 - \gamma_e} = (v_e^{1 / (\psi_e - 1)} )^{1 - \gamma_e} = v_e^{(1 - \gamma_e) / ( \psi_e - 1)}$
+\begin{align}\label{eq:value function Ve transform}
+  V_e & = \frac{v_e^{(1- \gamma_e) / (\psi_e - 1)} N_e^{1  - \gamma_e}}{1 - \gamma_e}\\
+  V_h & = \frac{v_h^{(1- \gamma_h) / (\psi_h - 1)} N_h^{1  - \gamma_h}}{1 - \gamma_h}.
+\end{align}
+The derivatives of $v_e$ are
+\begin{align*}
+  v_e' & = (\psi_e - 1)\xi_e^{\psi_e - 2}\xi_e'\\
+       & = (\psi_e - 1)\xi_e^{\psi_e - 1}\frac{\xi_e'}{\xi_e}\\
+  v_e'' & =(\psi_e - 1)(\psi_e - 2)\xi_e^{\psi_e - 3}\xi_e' + (\psi_e - 1)\xi_e^{\psi_>e - 2}\xi_e''\\
+       & = (\psi_e - 1)(\psi_e - 2)\xi_e^{\psi_e - 2}\frac{\xi_e'}{\xi_e} + (\psi_e - 1)\xi_e^{\psi_e - 1}\frac{\xi_e''}{\xi_e}\\
+\frac{v_e''}{v_e} & = (\psi_e - 1)(\psi_e - 2)\frac{\xi_e'}{\xi_e^2} + (\psi_e - 1)\frac{\xi_e''}{\xi_e}\\
+  \frac{\xi_e''}{\xi_e} & = \frac{1}{\psi_e - 1}\frac{v_e''}{v_e} - (\psi_e - 2)\frac{\xi_e'}{\xi_e^2}\\
+       & =  \frac{1}{\psi_e - 1}\frac{v_e''}{v_e} - \xi_e^{-1} \frac{(\psi_e - 2)}{(\psi_e - 1)}\frac{v_e'}{v_e},
+\end{align*}
+hence % $\xi_e = v_e^{1 / (\psi_e - 1)} \RA \xi_e^{\psi_e - 2} = v_e^{(\psi_e - 2) / (\psi_e - 1)}$
+\begin{align}\label{eq:xie derivative as function of ve}
+  \frac{\xi_e'}{\xi_e} & = \frac{1}{\psi_e - 1}\frac{v_e'}{v_e},\\
+\frac{\xi_e''}{\xi_e}  & =  \frac{1}{\psi_e - 1}\frac{v_e''}{v_e} - v_e^{-1 / (\psi_e - 1)} \frac{\psi_e - 2}{\psi_e - 1}\frac{v_e'}{v_e}.
+\end{align}
+
+Alternatively, I can re-derive the HJB. The aggregator simplifies to
+\begin{align*}
+f(C_e, V_e(N_e)) & = \frac{v_e^{(1 - \gamma_e) / (\psi_e - 1)} N_e^{ 1- \gamma_e}}{1 - 1/\psi_e}\left[\left(\frac{C_e}{v_e^{1 / (\psi_e - 1)}N_e  }\right)^{1 - 1 / \psi_e} - (\rho_e + \nu_e)\right].
+\end{align*}
+By Ito's lemma, if $v_e$ follows
+\begin{align*}
+  \frac{dv_e}{v_e} & = \mu_{ve}\, dt + \sigma_{ve}\, dW_t - \kappa_{ve}\, dJ_t,
+\end{align*}
+then $v_e^{1 / (\psi_e - 1)}$ follows
+\begin{align*}
+  dv_e^{1 / (\psi_e - 1)} & = \frac{1}{\psi_e - 1} v_e^{1 / (\psi_e - 1) - 1} \mu_{ve}v_e\, dt + \frac{1}{\psi_e - 1} v_e^{1 / (\psi_e - 1) - 1} \sigma_{ve}v_e\, dW_t\\
+                                       &\quad + \frac{1}{2}\frac{1 }{\psi_e - 1}\left(\frac{1 }{\psi_e - 1} - 1\right)v_e^{1 / (\psi_e - 1) - 2}(\sigma_{ve} v_e)^2\, dt + (((1 + \kappa_{ve})v_e)^{1 / (\psi_e - 1)} - v_e^{1 / (\psi_e - 1)})\, dJ_t\\
+\frac{dv_e^{1 / (\psi_e - 1)}}{v_e^{1 / (\psi_e - 1)}} & =\left( \frac{1}{\psi_e - 1}\mu_{ve}  + \frac{1}{2}\frac{1}{\psi_e - 1}\left(\frac{1}{\psi_e  - 1} - 1\right) \sigma_{ve}^2 \right)\, dt + \frac{1}{\psi_e - 1}\sigma_{ve}\, dW_t + ( (1 + \kappa_{ve})^{1 / (\psi_e - 1)} - 1)\, dJ_t\\
+                          & = \left( \frac{1}{\psi_e - 1}\mu_{ve}  + \frac{1}{2}\frac{\psi_e}{(\psi_e - 1)^2} \sigma_{ve}^2 \right)\, dt + \frac{1}{\psi_e - 1}\sigma_{ve}\, dW_t + ( (1 + \kappa_{ve})^{1 / (\psi_e - 1)} - 1)\, dJ_t.
+\end{align*}
+By Ito's product rule,
+\begin{align*}
+  \frac{d(v_e^{1 / (\psi_e - 1)} N_e)}{v_e^{1 / (\psi_e - 1)} N_e} & = \left(\mu_{Ne} + \frac{1}{\psi_e - 1}\mu_{ve} + \frac{1}{2}\frac{\psi_e}{(\psi_e - 1)^2}\sigma_{ve}^2 + \frac{1}{\psi_e - 1}\sigma_{ve}\sigma_{Ne}\right)\, dt + \left(\frac{1}{\psi_e - 1}\sigma_{ve} + \sigma_{Ne}\right)\, dW_t \\
+                                                                   &\quad + ( ((1 + \kappa_{ve})^{1 / (\psi_e - 1)} - 1) - \kappa_{Ne} - ((1 + \kappa_{ve})^{1 / (\psi_e - 1)} - 1)\kappa_{Ne})\, dJ_t.
+\end{align*}
+Then experts' transformed value function follows
+% \begin{align*}
+%   \frac{1}{1 - \gamma_e}\frac{dx_t^{1 - \gamma_e}}{x_t^{1 - \gamma_e}} & = (\mu_{x, t} - \frac{\gamma_e}{2} \sigma_{x, t}^2)\, dt + \sigma_{x, t}\, dW_t + \frac{(1 + \kappa_{x, t})^{1 - \gamma_e} - 1}{1 - \gamma_e}\, dJ_t,
+% \end{align*}
+\begin{align*}
+& \frac{1}{1  - \gamma_e}  \frac{dv_e^{(1 - \gamma_e) / (\psi_e - 1)}N_e^{1 - \gamma_e}}{v_e^{(1 - \gamma_e) / (\psi_e - 1)}N_e^{1 - \gamma_e}} \\
+& =  \left(\mu_{Ne} + \frac{1}{\psi_e - 1}\mu_{ve} + \frac{1}{2}\frac{\psi_e}{(\psi_e - 1)^2}\sigma_{ve}^2 + \frac{1}{\psi_e - 1}\sigma_{ve}\sigma_{Ne} - \frac{\gamma_e}{2} \left(\frac{1}{\psi_e - 1}\sigma_{ve} + \sigma_{Ne}\right)^2 \right)\, dt\\
+                                          &\quad + \left(\frac{1}{\psi_e - 1}\sigma_{ve} + \sigma_{Ne}\right)\, dW_t \\
+                                          &\quad + \frac{(1 +  ((1 + \kappa_{ve})^{1 / (\psi_e - 1)} - 1) - \kappa_{Ne} - ((1 + \kappa_{ve})^{1 / (\psi_e - 1)} - 1)\kappa_{Ne})^{1 - \gamma_e} - 1}{1 - \gamma_e}\, dJ_t.
+\end{align*}
+The HJB simplifies to
+\begin{align*}
+  0 & = f(C_e, V_e(N_e)) + \E\left[d\left(\frac{v_e^{(1 - \gamma_e) / (\psi_e - 1)}N_e^{1 - \gamma_e}}{1 - \gamma_e}\right)\right]\\
+  0 & = \max_{\varphi_e, \iota_e, C_e}  \frac{v_e^{(1 - \gamma_e) / (\psi_e - 1)} N_e^{ 1- \gamma_e}}{1 - 1/\psi_e}\left[\left(\frac{C_e}{v_e^{1 / (\psi_e - 1)}N_e  }\right)^{1 - 1 / \psi_e} - (\rho_e + \nu_e)\right]\\
+    &\quad + \frac{v_e^{(1 - \gamma_e) / (\psi_e - 1)}N_e^{ 1 - \gamma_e}}{1 - \gamma_e}\E\left[\frac{dv_e^{(1 - \gamma_e) / (\psi_e - 1)}N_e^{1 - \gamma_e}}{v_e^{(1 - \gamma_e) / (\psi_e - 1)}N_e^{1 - \gamma_e}}\right]\\
+    & = \max_{\varphi_e, \iota_e, C_e}  \frac{1}{1 - 1/\psi_e}\left[\left(\frac{C_e}{v_e^{1 / (\psi_e - 1)}N_e  }\right)^{1 - 1 / \psi_e} - (\rho_e + \nu_e)\right]\\
+& \quad +   \mu_{Ne} + \frac{1}{\psi_e - 1}\mu_{ve} + \frac{1}{2}\frac{\psi_e}{(\psi_e - 1)^2}\sigma_{ve}^2 + \frac{1}{\psi_e - 1}\sigma_{ve}\sigma_{Ne} - \frac{\gamma_e}{2} \left(\frac{1}{\psi_e - 1}\sigma_{ve} + \sigma_{Ne}\right)^2\\
+                                          &\quad + \frac{\lambda}{1 - \gamma_e}((1 +  ((1 + \kappa_{ve})^{1 / (\psi_e - 1)} - 1) - \kappa_{Ne} - ((1 + \kappa_{ve})^{1 / (\psi_e - 1)} - 1)\kappa_{Ne})^{1 - \gamma_e} - 1)\\
+    & = \max_{\varphi_e, \iota_e, C_e}  \frac{1}{1 - 1/\psi_e}\left[\left(\frac{C_e}{v_e^{1 / (\psi_e - 1)}N_e  }\right)^{1 - 1 / \psi_e} - (\rho_e + \nu_e)\right]+  \mu_{Ne} + \frac{1}{\psi_e - 1}\mu_{ve} \\
+& \quad + \frac{1}{2}\frac{\psi_e}{(\psi_e - 1)^2}\sigma_{ve}^2  + \frac{1}{\psi_e - 1}\sigma_{ve}\sigma_{Ne} - \frac{\gamma_e}{2}\left( \left(\frac{1}{\psi_e - 1}\sigma_{ve}\right)^2 + \sigma_{Ne}^2\right) - \frac{\gamma_e}{\psi_e - 1}\sigma_{ve}\sigma_{Ne}\\
+                                          &\quad + \frac{\lambda}{1 - \gamma_e}((1 +  ((1 + \kappa_{ve})^{1 / (\psi_e - 1)} - 1) - \kappa_{Ne}(1  + ((1 + \kappa_{ve})^{1 / (\psi_e - 1)} - 1)))^{1 - \gamma_e} - 1)\\
+    & = \max_{\varphi_e, \iota_e, C_e}  \frac{1}{1 - 1/\psi_e}\left[\left(\frac{C_e}{v_e^{1 / (\psi_e - 1)}N_e  }\right)^{1 - 1 / \psi_e} - (\rho_e + \nu_e)\right]+  \mu_{Ne} + \frac{1}{\psi_e - 1}\mu_{ve} \\
+& \quad + \frac{1}{2}(\psi_e - \gamma_e)\left(\frac{\sigma_{ve}}{\psi_e - 1}\right)^2   + \frac{1 - \gamma_e}{\psi_e - 1}\sigma_{ve}\sigma_{Ne} - \frac{\gamma_e}{2} \sigma_{Ne}^2 \\
+                                          &\quad + \frac{\lambda}{1 - \gamma_e}(((1 +  ((1 + \kappa_{ve})^{1 / (\psi_e - 1)} - 1))(1 - \kappa_{Ne}))^{1 - \gamma_e} - 1)\\
+    & = \max_{\varphi_e, \iota_e, C_e} \psi_e\left[\left(\frac{C_e}{v_e^{1 / (\psi_e - 1)}N_e  }\right)^{1 - 1 / \psi_e} - (\rho_e + \nu_e)\right]+  (\psi_e - 1)\mu_{Ne} + \mu_{ve} + \frac{1}{2}\frac{\psi_e - \gamma_e}{\psi_e - 1}\sigma_{ve}^2 \\
+& \quad   + (1 - \gamma_e)\sigma_{ve}\sigma_{Ne} - \frac{\gamma_e}{2}(\psi_e - 1) \sigma_{Ne}^2  + \lambda\frac{\psi_e - 1}{1 - \gamma_e}(((1 +  ((1 + \kappa_{ve})^{1 / (\psi_e - 1)} - 1))(1 - \kappa_{Ne}))^{1 - \gamma_e} - 1)
+\end{align*}%   d\left(\frac{v_e^{(1 - \gamma_e) / (\psi_e - 1)}N_e^{1 - \gamma_e}}{1 - \gamma_e}\right) & = \frac{1}{1 - \gamma_e}  d\left(v_e^{(1 - \gamma_e) / (\psi_e - 1)}N_e^{1 - \gamma_e}\right)
+The FOC for internal investment remains the same, but the FOC for consumption and leverage differ. For $C_e$, I obtain
+\begin{align*}
+ 0 & =   v_e^{(1 - 1/\psi_e) / (\psi_e - 1)}N_e^{1 / \psi_e - 1} C_e^{ - 1/ \psi_e} -N_e^{-1}\\
+  \left(\frac{C_e}{N_e}\right)^{-1/\psi_e} & = v_e^{(\psi_e - 1) / ((\psi_e - 1) / \psi_e)}\\
+  \left(\frac{C_e}{N_e}\right)^{-1/\psi_e} & = v_e^{1 / \psi_e}\\
+  \frac{C_e}{N_e} & = v_e^{-1}.
+\end{align*}
+For $\varphi_e$, I obtain
+\begin{align*}
+  0 & = (\psi_e - 1)\left(\frac{a_e - \iota_e}{q} + \mu_q + \Phi(\iota_e) - \delta + \sigma\sigma_q - dr_f\right) + (1 - \gamma_e)\sigma_{ve}(\sigma + \sigma_q) - \gamma_e(\psi_e - 1)\varphi_e(\sigma + \sigma_q)^2 \\
+    &\quad - \lambda(\psi_e - 1)(1 + ((1 + \kappa_{ve})^{1 / (\psi_e - 1)} - 1 ))^{1 - \gamma_e}(1 - \varphi_e(\kappa + \kappa_q - \kappa\kappa_q))^{ - \gamma_e}(\kappa + \kappa_q - \kappa\kappa_q),
+\end{align*}
+which re-arranges to
+\begin{align*}
+& (\psi_e - 1)\left(\frac{a_e - \iota_e}{q} + \mu_q + \Phi(\iota_e) - \delta + \sigma\sigma_q - dr_f\right)\\
+& = \gamma_e(\psi_e - 1)\varphi_e(\sigma + \sigma_q)^2 + (\gamma_e - 1)\varphi_e(\sigma + \sigma_q)\\
+&\quad + \lambda(\psi_e - 1)(1 + ((1 + \kappa_{ve})^{1 / (\psi_e - 1)} - 1))^{1 - \gamma_e}(1 - \varphi_e(\kappa + \kappa_q - \kappa\kappa_q))^{ - \gamma_e}(\kappa + \kappa_q - \kappa\kappa_q)\\
+& \frac{a_e - \iota_e}{q} + \mu_q + \Phi(\iota_e) - \delta + \sigma\sigma_q - dr_f\\
+& = \gamma_e\varphi_e(\sigma + \sigma_q)^2 + \frac{\gamma_e - 1}{\psi_e - 1}\sigma_{ve}(\sigma + \sigma_q)\\
+& \quad + \lambda(1 + ((1 + \kappa_{ve})^{1 / (\psi_e - 1)} - 1))^{1 - \gamma_e}(1 - \varphi_e(\kappa + \kappa_q - \kappa\kappa_q))^{ - \gamma_e}(\kappa + \kappa_q - \kappa\kappa_q).
+\end{align*}
+
+
+Then the equilibrium conditions become
+\begin{align}
+    q & = \frac{\chi_2(a_e \varphi_e \eta + a_h \varphi_h(1 - \eta)) + 1}{\chi_2(  \eta  / v_e + (1 -  \eta) / v_h) + \chi_1}\\
+  \begin{split}
+   dr_f  & = \frac{a_e - \iota}{q} + \mu_q + \Phi(\iota) - \delta + \sigma\sigma_q - \gamma_e\varphi_e(\sigma + \sigma_q)^2 - \frac{\gamma_e - 1}{\psi_e - 1}\sigma_{ve}(\sigma + \sigma_q)\\
+    & \quad - \lambda(1 + ((1 + \kappa_{ve})^{1 / (\psi_e - 1)} - 1))^{1 - \gamma_e}\frac{\kappa + \kappa_q - \kappa\kappa_q}{(1 - \varphi_e(\kappa + \kappa_q - \kappa\kappa_q))^{\gamma_e}}
+  \end{split}\\
+  \begin{split}
+  \frac{a_e - a_h}{q} & \geq (\gamma_e\varphi_e - \gamma_h\varphi_h)(\sigma + \sigma_q)^2 + \left(\frac{\gamma_e - 1}{\psi_e - 1} \sigma_{v e} - \frac{\gamma_h - 1}{\psi_h - 1}\sigma_{v h}\right)(\sigma + \sigma_q)\\
+  &\quad + \lambda(\kappa + \kappa_q - \kappa\kappa_q)(1 + ((1 + \kappa_{ve})^{1 / (\psi_e - 1)} - 1))^{ 1- \gamma_e}(1 - \varphi_e(\kappa + \kappa_q - \kappa\kappa_q))\\
+  &\quad - \lambda(\kappa + \kappa_q - \kappa\kappa_q)(1 + ((1 + \kappa_{vh})^{1 / (\psi_h - 1)} - 1))^{ 1- \gamma_h}(1 - \varphi_h(\kappa + \kappa_q - \kappa\kappa_q))
+  \end{split}\\
+    \mu_{Ne} & = (1 - \varphi_e)dr_f+ \varphi_e\left(\frac{a_e - \iota}{q} + \mu_q + \Phi(\iota) - \delta + \sigma\sigma_q\right)  - \frac{C_e}{N_e}\\
+    \mu_{Nh} & = (1 - \varphi_h)dr_f+ \varphi_h\left(\frac{a_h - \iota}{q} + \mu_q + \Phi(\iota) - \delta + \sigma\sigma_q\right)  - \frac{C_h}{N_h}\\
+\begin{split}
+   0 & = \psi_e\left[\left(\frac{C_e}{N_e}\frac{1}{v_e^{1 / (\psi_e - 1)}}  \right)^{1 - 1 / \psi_e} - (\rho_e + \nu_e)\right]+  (\psi_e - 1)\mu_{Ne}\\
+& \quad+ \mu_{ve} + \frac{1}{2}\frac{\psi_e - \gamma_e}{\psi_e - 1}\sigma_{ve}^2    + (1 - \gamma_e)\sigma_{ve}\varphi_e(\sigma + \sigma_q) - \frac{\gamma_e}{2}(\psi_e - 1) (\varphi_e(\sigma + \sigma_q))^2 \\
+&\quad + \lambda\frac{\psi_e - 1}{1 - \gamma_e}(((1 +  ((1 + \kappa_{ve})^{1 / (\psi_e - 1)} - 1))(1 - \varphi_e(\kappa + \kappa_q - \kappa\kappa_q)))^{1 - \gamma_e} - 1)
+  \end{split}\\
+  \begin{split}
+   0 & = \psi_h\left[\left(\frac{C_h}{N_h}\frac{1}{v_h^{1 / (\psi_h - 1)}}  \right)^{1 - 1 / \psi_h} - (\rho_h + \nu_h)\right]+  (\psi_h - 1)\mu_{Nh}\\
+& \quad+ \mu_{vh} + \frac{1}{2}\frac{\psi_h - \gamma_h}{\psi_h - 1}\sigma_{vh}^2   + (1 - \gamma_h)\sigma_{vh}\varphi_h(\sigma + \sigma_q) - \frac{\gamma_h}{2}(\psi_h - 1) (\varphi_h(\sigma + \sigma_q))^2  \\
+&\quad + \lambda\frac{\psi_h - 1}{1 - \gamma_h}(((1 +  ((1 + \kappa_{vh})^{1 / (\psi_h - 1)} - 1))(1 - \varphi_h(\kappa + \kappa_q - \kappa\kappa_q)))^{1 - \gamma_h} - 1)
+  \end{split}
+\end{align}
+
+
+\subsection{Functional Iteration Algorithm}
+In the case of log utility, we apply the algorithm developed by Li (2020).
+
+
+\subsection{Pseudo-Transient Functional Iteration Algorithm}
+
+
+
 Can either directly solve the HJB problem, or we can transform the value functions further using the approach of Brunnermeier-Sannikov (2016). It is worthwhile trying both to see which is faster for convergence or is more numerically stable. By default though, we will use the HJB approach since that seems to be Di Tella's preferred approach.
 
 
