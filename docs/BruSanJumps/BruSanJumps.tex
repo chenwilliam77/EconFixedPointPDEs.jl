@@ -625,7 +625,7 @@ This equation re-arranges to %q = \frac{\chi_2 (a_e\varphi_e\eta  + a_h\varphi_h
     q  =
     \begin{cases}
       \frac{\chi_2(a_e \varphi_e \eta + a_h \varphi_h(1 - \eta)) + 1}{\chi_2((\rho_e + \nu_e) \eta + ( \rho_h + \nu_h)(1 - \eta)) + \chi_1} & \text{if }\psi = 1,\\
-      \frac{\chi_2(a_e \varphi_e \eta + a_h \varphi_h(1 - \eta)) + 1}{\chi_2( \xi_e^{1 - \psi_e} \eta + \psi_h^{1 - \psi_h}(1 -  \eta)) + \chi_1} & \text{if }\psi \neq 1.\\
+      \frac{\chi_2(a_e \varphi_e \eta + a_h \varphi_h(1 - \eta)) + 1}{\chi_2( \xi_e^{1 - \psi_e} \eta + \xi_h^{1 - \psi_h}(1 -  \eta)) + \chi_1} & \text{if }\psi \neq 1.\\
     \end{cases}
 \end{equation}
 
@@ -861,7 +861,17 @@ Then the equilibrium conditions become
 
 
 \subsection{Functional Iteration Algorithm}
-In the case of log utility, we apply the algorithm developed by Li (2020).
+In the case of log utility, we apply the algorithm developed by Li (2020). The algorithm proceeds in two main steps.
+\begin{enumerate}
+\item Initialize a guess $q^{(0)}$ over the state space.\footnote{A decent guess is the equilibrium with no jumps.}
+\item Do for $i$ in $1:N$ or until $q^{(i)}$ is sufficiently close to $q^{(i - 1)}$
+  \begin{enumerate}[(a)]
+  \item Given $q^{(i - 1)}$, calculate new proposals for $\varphi_e^{(i)}$ and $\kappa_q^{(i)}$ by differencing agents' first-order conditions for leverage and solving the jump size fixed point (\ref{eq:kappa q fixed point}) for $q$.
+  \item Given the new proposal for $\varphi_e^{(i)}$, calculate a new proposal $\hat{q}^{(i)}$ using market-clearing for consumption (\ref{eq:q closed form}).
+  \item Set $q^{(i)} = \alpha \hat{q}^{(i)} + (1 - \alpha) q^{(i - 1)}$.
+  \end{enumerate}
+\end{enumerate}
+The parameter $\alpha$ is the learning rate and faciliates ``tempered updating''. Without a sufficiently small $\alpha$, the algorithm may not converge because solutions may not exist when $q^{(i)}$ changes too rapidly. It is also important to use monotonocity-preserving interpolants for $q$. Otherwise, the algorithm may not converge because of the difficulty in solving the endogenous jump size $\kappa_q$.
 
 
 \subsection{Pseudo-Transient Functional Iteration Algorithm}
