@@ -195,7 +195,7 @@ end
 
 """
 ```
-augment_variables_nojump_fd!(m::Li2020, stategrid::StateGrid, funcvar::OrderedDict{Symbol, Vector{S}},
+augment_variables_nojump!(m::Li2020, stategrid::StateGrid, funcvar::OrderedDict{Symbol, Vector{S}},
     endo::OrderedDict{Symbol, Vector{S}}, odesol::ODESolution) where {S <: Real}
 ```
 

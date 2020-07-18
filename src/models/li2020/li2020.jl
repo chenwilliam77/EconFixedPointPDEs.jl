@@ -3,9 +3,7 @@
 Li2020{T} <: AbstractNLCTFPModel{T}
 ```
 
-The `Li2020` type defines the structure of the simple New Keynesian DSGE
-model described in 'Bayesian Estimation of DSGE Models' by Sungbae An and Frank
-Schorfheide.
+The `Li2020` type defines the structure of the model in Li, Wenhao (2020), "Public Liquidity and Financial Crises."
 
 ### Fields
 
