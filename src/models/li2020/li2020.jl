@@ -241,9 +241,6 @@ function model_settings!(m::Li2020)
     m <= Setting(:μK, growth_quadratic_investment, "Rate of capital growth")
     m <= Setting(:∂Φ, derivative_quadratic_investment_li2020, "Derivative of internal investment function")
 
-    # Variables to differentiate
-    m <= Setting(:differential_variables, [:p], "Variables that will be differentiated via finite differences")
-
     # Numerical settings for grid
     m <= Setting(:N, 100, "Grid size")
     m <= Setting(:stategrid_method, :exponential, "Type of grid to construct for state variables")
