@@ -44,7 +44,7 @@ function augment_variables_nojump_log!(m::BruSan, stategrid::StateGrid, ode_f::F
     ∂q_∂η   = derivs[:∂q_∂η]
     ∂²q_∂η² = derivs[:∂²q_∂η²]
     η       = stategrid[:η]
-    @unpack φ_e, φ_h, σ_q, ςₑ, ςₕ, μ_η, σ_η, ι, Φ, μ_K = endo
+    @unpack φ_e, φ_h, μ_q, σ_q, ςₑ, ςₕ, μ_η, σ_η, ι, Φ, μ_K = endo
     θ = parameters_to_named_tuple(m.parameters)
     @unpack ρₑ, ρₕ, νₑ, νₕ, aₑ, aₕ, σ, δ, χ₁, χ₂, τ = θ
     cₑ_per_nₑ = ρₑ + νₑ
@@ -63,7 +63,8 @@ function augment_variables_nojump_log!(m::BruSan, stategrid::StateGrid, ode_f::F
         ∂q_∂η[(i + 1):end] .= -(χ₂ * aₑ + 1) / (χ₂ * (η  * ce_per_n_e + (1 - η) * ch_per_nh) + χ₁)^2 *
             (χ₂ * (cₑ_per_nₑ - cₕ_per_nₕ))
     end
-    ∂²q_∂η² .= CenteredDifference(2, 2, diff(η), length(η)) * RobinBC((0., 1., 0.), (0., 1., 0.)) .* q
+    dx = vcat(η[1], diff(η), 1. - η[end])
+    ∂²q_∂η² .= CenteredDifference(2, 2, dx, length(η)) * RobinBC((0., 1., 0.), (0., 1., 0.), dx) * q
 
     # Solve for values not calculated during the calculation of equilibrium
     φ_e[1:i] .= ((q[1:i] .* (χ₂ .* (cₑ_per_nₑ .* η[1:i] + cₕ_per_nₕ .* (1. .- η[1:i])) .+ χ₁) .- 1.) ./ χ₂ .- aₕ) ./
@@ -72,9 +73,9 @@ function augment_variables_nojump_log!(m::BruSan, stategrid::StateGrid, ode_f::F
     φ_h .= (1. .- φ_e .* η) ./ (1. .- η)
     is1 = (i + 1):length(η) # experts hold all capital
     no1 = 1:i
-    σ_q[no1] .= sqrt.((aₑ - aₕ) ./ q ./ (φ_e[no1] - φ_h[no1])) .- σ
+    σ_q[no1] .= sqrt.((aₑ - aₕ) ./ q[no1] ./ (φ_e[no1] - φ_h[no1])) .- σ
     σ_q[is1] .= ∂q_∂η[is1] .* η[is1] .* (φ_e[is1] .- 1.) .* σ ./
-        (q[is1] .- ∂q_∂η[is1] .* η .* (φ_e[is1] .- 1.))
+        (q[is1] .- ∂q_∂η[is1] .* η[is1] .* (φ_e[is1] .- 1.))
     ςₑ .= φ_e .* (σ .+ σ_q).^2
     ςₕ .= φ_h .* (σ .+ σ_q).^2
 

@@ -190,8 +190,10 @@ function solve_nojump(m::AbstractNLCTFPModel; method::Symbol = :ode, return_sol:
         ode_f, ode_callback = eqcond_nojump(m)
 
         tspan = (stategrid[s][1], stategrid[s][end])
-        θ = parameters_to_named_tuple(map(x -> get_parameters(m)[get_keys(m)[x]], get_setting(m, :nojump_parameters)))
-        prob = ODEProblem(ode_f, boundary_conditions(m)[:p][1], tspan, θ, tstops = stategrid[s][2:end - 1])
+        θ = parameters_to_named_tuple(haskey(get_settings(m), :nojump_parameters) ?
+                                      map(x -> get_parameters(m)[get_keys(m)[x]], get_setting(m, :nojump_parameters)) :
+                                      get_parameters(m))
+        prob = ODEProblem(ode_f, nojump_ode_init(m), tspan, θ, tstops = stategrid[s][2:end - 1])
         sol = solve(prob, get_setting(m, :ode_integrator),
                     reltol = get_setting(m, :ode_reltol),
                     abstol = get_setting(m, :ode_abstol), callback = ode_callback)

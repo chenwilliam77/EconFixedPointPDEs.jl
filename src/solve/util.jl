@@ -59,3 +59,22 @@ end
 
     return func_error
 end
+
+"""
+```
+```
+
+sets up (by default) the initial condition for the no-jump solution via an ODE solver.
+The inference may not always work.
+"""
+function nojump_ode_init(m::AbstractNLCTFPModel)
+    @warn "Guessing the initial values for the no-jump ODE. It is recommended to overload the function `nojump_ode_init` " *
+        "to make sure the correct initial values are used."
+    bcs = get_setting(m, :boundary_conditions)
+    out = map(x -> x[1], values(bcs))
+    if length(out) == 1
+        return out[1]
+    else
+        return out
+    end
+end

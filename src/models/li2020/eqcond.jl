@@ -578,3 +578,9 @@ function eqcond_nojump(m::Li2020)
 
     return f1, cb
 end
+
+# For use during the solve step since we also store the first derivative's boundary conditions
+# but they are not used by the ODE solver.
+function nojump_ode_init(m::Li2020)
+    return get_setting(m, :boundary_conditions)[:p][1]
+end

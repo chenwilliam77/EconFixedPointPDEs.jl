@@ -238,7 +238,7 @@ function model_settings!(m::BruSan)
     # Numerical settings for grid
     m <= Setting(:N, 100, "Grid size")
     m <= Setting(:stategrid_method, :exponential, "Type of grid to construct for state variables")
-    m <= Setting(:stategrid_dimensions, OrderedDict{Symbol, Tuple{Float64, Float64, Int}}(:η => (1e-3, 1., get_setting(m, :N))),
+    m <= Setting(:stategrid_dimensions, OrderedDict{Symbol, Tuple{Float64, Float64, Int}}(:η => (1e-3, 1. - 1e-3, get_setting(m, :N))),
                  "Information about the dimensions of the state space")
     m <= Setting(:stategrid_splice, 0.2, "The grid is constructed in two parts. This value is where the first half stops.")
 
