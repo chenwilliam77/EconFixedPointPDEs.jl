@@ -2,7 +2,7 @@ using Test, OrdinaryDiffEq, HDF5, ModelConstructors
 include(joinpath(dirname(@__FILE__), "../../../src/includeall.jl"))
 
 m = Li2020()
-stategrid, _ = initialize!(m)
+stategrid, _ = initialize_nojump!(m)
 ode_f, ode_callback = eqcond_nojump(m)
 tspan = (stategrid[:w][1], stategrid[:w][end])
 θ = parameters_to_named_tuple(map(x -> m.parameters[m.keys[x]], get_setting(m, :nojump_parameters)))
