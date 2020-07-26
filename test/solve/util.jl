@@ -42,3 +42,12 @@ end
         maximum(map(x -> maximum(abs.(funcvar1[x] - funcvar2[x])), [:a]))
     @test calculate_func_error(funcvar1, funcvar2, :L²; vars = [:a]) == sum(map(x -> sum((funcvar1[x] - funcvar2[x]) .^ 2), [:a]))
 end
+
+
+@testset "Construction of non-uniform grid spacing"  begin
+    stategrid = StateGrid(OrderedDict(:x => sort(rand(10))))
+    bc = [(0., 1.)]
+    @test_throws AssertionError nonuniform_grid_spacing(stategrid, [(0., 1.), (0., 1.)])
+    @test nonuniform_grid_spacing(stategrid) ≈ vcat(diff(stategrid[:x][1:2]), diff(stategrid[:x]), diff(stategrid[:x][end - 1:end]))
+    @test nonuniform_grid_spacing(stategrid) ≈ vcat(stategrid[:x][1], diff(stategrid[:x]), 1. - stategrid[:x][end])
+end

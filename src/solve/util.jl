@@ -62,6 +62,7 @@ end
 
 """
 ```
+nojump_ode_init(m::AbstractNLCTFPModel)
 ```
 
 sets up (by default) the initial condition for the no-jump solution via an ODE solver.
@@ -76,5 +77,34 @@ function nojump_ode_init(m::AbstractNLCTFPModel)
         return out[1]
     else
         return out
+    end
+end
+
+"""
+```
+function nonuniform_grid_spacing(stategrid::StateGrid, bc::AbstractVector{Tuple{S, S}} =
+    Vector{Tuple{Float64, Float64}}(undef, 0)) where {S <: Real}
+```
+
+constructs the spacing vector for a non-uniform grid using a ghost-node approach.
+
+If `bc` is empty, then we assume the spacing between the boundary and the boundary-adjacent grid points
+are the same as the second most interior grid point. For a 1D grid `x`, this assumption means that
+the spacing between the boundary and left/right endpoints are `diff(x)[1]` and `diff[x][end]`, respectively.
+
+If the boundary values are known, then they can be passed to `bc` as a vector of the endpoints of
+each dimension in a Cartesian product, e.g.
+with a grid with boundaries `[a, b] × [c, d]`, the user would set `bc = [(a, b), (c, d)]`.
+"""
+function nonuniform_grid_spacing(stategrid::StateGrid, bc::AbstractVector{Tuple{S, S}} =
+                                 Vector{Tuple{Float64, Float64}}(undef, 0)) where {S <: Real}
+    @assert isempty(bc) || ndims(stategrid) == length(bc) "The dimensions of `stategrid` must match `bc`"
+    if ndims(stategrid) == 1
+        x = values(stategrid.x)[1]
+        dx1 = isempty(bc) ? x[2] - x[1] : x[1] - bc[1][1]
+        dxN = isempty(bc) ? x[end] - x[end - 1] : bc[1][2] - x[end]
+        return vcat(dx1, diff(x), dxN)
+    else
+        error("Not yet implemented")
     end
 end
