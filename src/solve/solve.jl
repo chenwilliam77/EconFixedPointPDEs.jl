@@ -12,10 +12,10 @@ function solve(m::AbstractNLCTFPModel, init_guess::OrderedDict = OrderedDict{Sym
                individual_convergence::OrderedDict{Symbol, Vector{Float64}} = OrderedDict{Symbol, Vector{Float64}}(),
                error_calc::Symbol = :total_error, type_checks::Bool = true, return_sol::Bool = false, verbose::Symbol = :none,
                vars_for_error::Vector{Symbol} = Vector{Symbol}(undef, 0),
-               has_verbose::Bool = true)
+               has_verbose::Bool = true, kwargs...)
 
     if nojump
-        return solve_nojump(m; method = nojump_method, return_sol = return_sol, verbose = verbose)
+        return solve_nojump(m, init_guess; method = nojump_method, return_sol = return_sol, verbose = verbose, kwargs...)
     else
         ## Construct functional iteration loop
         stategrid, funcvar, derivs, endo = initialize!(m)
@@ -182,7 +182,8 @@ solves the no-jump equilibrium in `m`. The only available method currently is `:
 ODE methods. Planned extensions include `:pseudo_transient_continuation` via EconPDEs.jl
 and Chebyshev/Smolyak projection via BasisMatrices.jl/SmolyakApprox.jl
 """
-function solve_nojump(m::AbstractNLCTFPModel; method::Symbol = :ode, return_sol::Bool = false, verbose::Symbol = :none)
+function solve_nojump(m::AbstractNLCTFPModel, init_guess::OrderedDict = OrderedDict{Symbol, Vector{Float64}}();
+                      method::Symbol = :ode, return_sol::Bool = false, verbose::Symbol = :none, kwargs...)
     stategrid, functional_variables, derivatives, endogenous_variables = initialize_nojump!(m)
 
     if (method == :ode || method == :ODE) && ndims(stategrid) == 1 # Univariate no jump model => use ODE methods
@@ -206,10 +207,49 @@ function solve_nojump(m::AbstractNLCTFPModel; method::Symbol = :ode, return_sol:
         else
             return stategrid, functional_variables, derivatives, endogenous_variables
         end
-    elseif false
-        # Add implementation for pseudo-transient continuation
+    elseif method in [:PTC, :pseudo_transient_continuation]
+        stategrid, functional_variables, derivatives, endogenous_variables = initialize_nojump!(m)
+        N = length(stategrid)
+        θ = parameters_to_named_tuple(m.parameters)
+        timestep!, resize_fcn! = eqcond_nojump(m)
+        function hjb!(ydot, y)
+            resize_fcn!(y, functional_variables) # map y into functional_variables
+            ydot .= timestep!(stategrid, functional_variables, derivatives, endogenous_variables, θ)
+        end
+
+        # Create sparsity matrix
+        y0 = vcat(values(init_guess))
+        ydot = similar(y0)
+        sparsity_pattern = jacobian_sparsity(hjb!, ydot, y0)
+        jac = Float64.(sparse(sparsity_pattern))
+        colors = matrix_colors(jac)
+        if all(jac .== 0.)
+            @warn "Automatic matrix coloring failed."
+            jac    = nothing
+            colors = 1:length(y0)
+        end
+
+        # Run pseudo-transient continuation algorithm
+        yfinal, distance = finiteschemesolve(hjb!, y0; J0c = (jac, colors), kwargs... )
+
+        # Populate functional variables
+        funcvar_names = keys(functional_variables)
+        for (i, k) in enumerate(keys(init_guess))
+            functional_variables[k] .= yfinal[1 + (i - 1) * N:(i * N)]
+        end
+
+        # Rerun time step to ensure the static step is calculated
+        hjb!(ydot, yfinal)
+
+        # Finish remaining calculations
+        augment_variables_nojump!(m, stategrid, functional_variables,
+                                  derivatives, endogenous_variables)
+
+        return stategrid, functional_variables, derivatives, endogenous_variables
+    elseif method in [:pseudo_transient_relaxation, :PTR]
+
     end
 end
 
-# TO DO: write a copy of solve_nojump or a wrapper that takes in specifically an AbstractNLCTDiffusionModel,
+# TO DO: write a copy of solve_nojump or a wrapper that takes in spec[<0;22;8Mifically an AbstractNLCTDiffusionModel,
 # which is for models that do not have any jumps
