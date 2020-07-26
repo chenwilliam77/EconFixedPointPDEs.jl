@@ -1,9 +1,9 @@
 # using DifferentialEquations,
-using DiffEqOperators, FastGaussQuadrature, FileIO, ForwardDiff, Interpolations, JLD2, LinearAlgebra
+using BandedMatrices, DiffEqOperators, FastGaussQuadrature, FileIO, ForwardDiff, Interpolations, JLD2, LinearAlgebra
 using ModelConstructors, NLsolve, NLPModelsIpopt, OrderedCollections, OrdinaryDiffEq, Printf, Random, Roots
 using SparseArrays, StatsBase, UnPack, VectorizedRoutines.Matlab
 
-using EconPDEs: StateGrid
+using EconPDEs: StateGrid, implicit_timestep, finiteschemesolve
 using NLPModels: ADNLSModel, LLSModel , FeasibilityFormNLS
 
 import Base: eltype, getindex
@@ -24,6 +24,7 @@ include("auxiliary/investment.jl")
 
 # solve/
 include("solve/solve.jl")
+include("solve/pseudo_transient_relaxation.jl")
 include("solve/differentiate.jl")
 include("solve/init_derivatives.jl")
 include("solve/util.jl")
