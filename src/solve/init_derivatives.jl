@@ -1,6 +1,6 @@
 # Extend later to multiple dimensions by using multple dispatch, probably we'll now use a Vector of Tuples of Ints
 # or by using generated functions
-function init_derivatives!(m::AbstractNLCTModel, instructions::Dict{Symbol, Vector{Int}},
+function init_derivatives!(m::AbstractNLCTModel, instructions::AbstractDict{Symbol, Vector{Int}},
                            statevars::Vector{Symbol} = collect(keys(get_state_variables(m))))
 
     derivs = get_derivatives(m)
@@ -19,7 +19,7 @@ function init_derivatives!(m::AbstractNLCTModel, instructions::Dict{Symbol, Vect
     end
 end
 
-function init_derivatives!(m::AbstractNLCTModel, instructions::Dict{Symbol, Vector{Tuple{Int, Int}}},
+function init_derivatives!(m::AbstractNLCTModel, instructions::AbstractDict{Symbol, Vector{Tuple{Int, Int}}},
                            statevars::Vector{Symbol} = collect(keys(get_state_variables(m))))
 
     derivs = get_derivatives(m)
