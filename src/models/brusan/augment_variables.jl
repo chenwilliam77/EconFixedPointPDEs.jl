@@ -31,9 +31,10 @@ function augment_variables_nojump!(m::BruSan, stategrid::StateGrid, ode_f::Funct
 
     if m[:γₑ].value == 1. && m[:γₕ].value == 1. && m[:ψₑ].value == 1. && m[:ψₕ].value == 1.
         return augment_variables_nojump_log!(m, stategrid, ode_f, funcvar, derivs, endo, odesol)
+    elseif m[:ψₑ].value == 1. && m[:ψₕ].value == 1.
+        return augment_variables_nojump_nonunit_gamma!(m, stategrid, ode_f, funcvar, derivs, endo, odesol)
     end
 end
-
 
 function augment_variables_nojump_log!(m::BruSan, stategrid::StateGrid, ode_f::Function, funcvar::OrderedDict{Symbol, Vector{S}},
                                        derivs::OrderedDict{Symbol, Vector{S}},
@@ -60,7 +61,7 @@ function augment_variables_nojump_log!(m::BruSan, stategrid::StateGrid, ode_f::F
     else
         q[(i + 1):end] .= (χ₂ * aₑ + 1.) ./ (χ₂ .* (η[(i + 1):end] .* cₑ_per_nₑ +
                                                     (1. .- η[(i + 1):end]) .* cₕ_per_nₕ) .+ χ₁)
-        ∂q_∂η[(i + 1):end] .= -(χ₂ * aₑ + 1) / (χ₂ * (η  * ce_per_n_e + (1 - η) * ch_per_nh) + χ₁)^2 *
+        ∂q_∂η[(i + 1):end] .= -(χ₂ * aₑ + 1) / (χ₂ * (η  * cₑ_per_nₑ + (1 - η) * cₕ_per_nₕ) + χ₁)^2 *
             (χ₂ * (cₑ_per_nₑ - cₕ_per_nₕ))
     end
     dx = vcat(η[1], diff(η), 1. - η[end])

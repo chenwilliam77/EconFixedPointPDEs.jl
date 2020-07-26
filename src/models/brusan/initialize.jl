@@ -7,11 +7,14 @@ sets up all initial conditions for solving BruSan, such as the grid and boundary
 """
 function initialize!(m::BruSan)
 
-    # Use no jump solution for p as initial guess
+    stategrid, funcvar, derivs, endo = initialize_nojump!(m)
+
+
+    #= # Use no jump solution for q as initial guess
     stategrid, funcvar, derivs, endo = solve(m; nojump = true, nojump_method = :ode) # This calls initialize_nojump! already
 
     # Interpolate w/SLM, first over the "ODE" part, then interpolate once more
-    q₀, q₁ = get_setting(m, :boundary_conditions)[:q]
+     q₀, q₁ = get_setting(m, :boundary_conditions)[:q]
     ψ_is_1 = findfirst(funcvar[:p] .>= q₁)
     p_SLM = SLM(stategrid[:w][1:ψ_is_1],  funcvar[:p][1:ψ_is_1];  concave_down = true, left_value = q₀,
                 right_value = q₁, increasing = true, knots = floor(Int, ψ_is_1 / 4))
@@ -28,7 +31,7 @@ function initialize!(m::BruSan)
     funcvar[:Q̂]      .= fill(.05 * Q, length(stategrid))
 
     # Some settings for functional iteration
-    m <= Setting(:κp_grid, vcat(0., exp.(range(log(1e-3), stop = log((q₁ - q₀) / q₁), length = 19))))
+    m <= Setting(:κp_grid, vcat(0., exp.(range(log(1e-3), stop = log((q₁ - q₀) / q₁), length = 19))))=#
 
     return stategrid, funcvar, derivs, endo
 end
@@ -51,6 +54,9 @@ function initialize_nojump!(m::BruSan)
                                            get_setting(m, :stategrid_splice), Int(round(N / 2))),
                               gen_grid(get_setting(m, :stategrid_splice) + .01, get_setting(m, :stategrid_dimensions)[:η][2],
                                        Int(N - round(N / 2))))
+    zz  = collect(range(0.001, stop = 0.999, length = get_setting(m, :N)))
+    stategrid_init[:η] = 3. .* zz .^ 2  - 2. .* zz .^ 3;
+
     stategrid = StateGrid(stategrid_init)
 
     # Construct dictionary of functional variables
@@ -69,6 +75,19 @@ function initialize_nojump!(m::BruSan)
     endo = OrderedDict{Symbol, Vector{model_type}}()
     for k in keys(get_endogenous_variables(m))
         endo[k] = Vector{model_type}(undef, N)
+    end
+
+    if m[:γₑ].value != 1. && m[:γₕ].value != 1.
+        qmin = (m[:χ₂] * m[:aₕ] + 1.) / (m[:χ₂] * (m[:ρₕ] + m[:νₕ]) + m[:χ₁])
+        qmax = (m[:χ₂] * m[:aₑ] + 1.) / (m[:χ₂] * (m[:ρₑ] + m[:νₑ]) + m[:χ₁])
+        qguess = (qmin + qmax) / 2.
+        #=if m[:ψₑ].value == 1. && m[:ψₕ].value == 1.
+            funcvar[:vₑ] .= (m[:aₑ] * qguess * (m[:γₑ] / (m[:γₑ] + m[:γₕ]))) .* stategrid[:η]
+            funcvar[:vₕ] .= (m[:aₕ] * qguess * 2 * (m[:γₕ] / (m[:γₑ] + m[:γₕ]))) .* (1. .- stategrid[:η])
+        else=#
+            funcvar[:vₑ] .= ones(length(stategrid)) # (m[:aₑ] .* stategrid[:η]).^(m[:ψₑ] - 1.)
+            funcvar[:vₕ] .= ones(length(stategrid)) # m[:aₕ] .* (1. .- stategrid[:η]).^(m[:ψₕ] - 1.)
+        #end
     end
 
     # Establish boundary conditions

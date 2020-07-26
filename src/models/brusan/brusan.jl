@@ -112,11 +112,13 @@ function init_model_indices!(m::BruSan)
     functional_variables = collect([:q, :vₑ, :vₕ])
 
     # Derivatives of variables
-    init_derivatives!(m, Dict{Symbol, Vector{Int}}(:q => standard_derivs(1)), state_variables)
+    init_derivatives!(m, OrderedDict{Symbol, Vector{Int}}(:q => standard_derivs(1), :vₑ => standard_derivs(1), :vₕ => standard_derivs(1)),
+                      state_variables)
     derivatives = keys(get_derivatives(m))
 
     # Endogenous variables
-    endogenous_variables = collect([:φ_e, :φ_h, :σ_q, :μ_q, :σ_η, :μ_η, :ςₑ, :ςₕ, :ι, :Φ, :μ_K, :dr_f])
+    endogenous_variables = collect([:φ_e, :φ_h, :σ_q, :μ_q, :σ_η, :μ_η, :ςₑ, :ςₕ, :ι, :Φ, :μ_K, :dr_f,
+                                    :σ_vₑ, :σ_vₕ, :μ_vₑ, :μ_vₕ])
 
     # Observables
     observables = keys(m.observable_mappings)
@@ -236,11 +238,11 @@ creates the model's settings.
 function model_settings!(m::BruSan)
 
     # Numerical settings for grid
-    m <= Setting(:N, 100, "Grid size")
+    m <= Setting(:N, 150, "Grid size")
     m <= Setting(:stategrid_method, :exponential, "Type of grid to construct for state variables")
     m <= Setting(:stategrid_dimensions, OrderedDict{Symbol, Tuple{Float64, Float64, Int}}(:η => (1e-3, 1. - 1e-3, get_setting(m, :N))),
                  "Information about the dimensions of the state space")
-    m <= Setting(:stategrid_splice, 0.2, "The grid is constructed in two parts. This value is where the first half stops.")
+    m <= Setting(:stategrid_splice, 0.1, "The grid is constructed in two parts. This value is where the first half stops.")
 
     # Numerical settings for no jump equilibrium
     m <= Setting(:boundary_conditions, OrderedDict{Symbol, Vector{Float64}}(:q => [0.; 0.]),
@@ -249,6 +251,8 @@ function model_settings!(m::BruSan)
     m <= Setting(:ode_abstol, 1e-12, "Absolute tolerance for ODE integration")
     m <= Setting(:ode_integrator, Tsit5(), "Numerical ODE integrator for no-jump solution")
     m <= Setting(:backup_ode_integrators, [DP5(), RK4(), Euler()], "Back up numerical ODE integrators for no-jump solution")
+    m <= Setting(:interpolant, Gridded(Linear()), "Interpolation method for value functions")
+    m <= Setting(:max_q₀_perturb, 1.05, "Maximum perturbation for the initial value of q at η = 0")
 
     # Numerical settings for functional iteration
     m <= Setting(:tol, 1e-4, "Tolerance for functional iteration")
