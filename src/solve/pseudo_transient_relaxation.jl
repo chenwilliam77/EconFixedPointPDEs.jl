@@ -5,12 +5,11 @@
 The homogeneous diffusion must take the form
 
 ```
-dXₜ / Xₜ = μₜ dt + Σₜ⋅dW_t,
+dXₜ / Xₜ = μₜ dt + Σₜ dW_t,
 ```
 
-where `Σₜ` is a column vector and every component of the n-dimensional Brownian motion `Wₜ`
-is assumed to be independent of the other components. This assumption can be relaxed but
-involves additional computation from calculating the covariance matrix.
+where `Σₜ` is a matrix and every component of the n-dimensional Brownian motion `Wₜ`
+is assumed to be independent of the other components.
 
 For a broad class of problems, the HJB can be represented in the form
 
@@ -22,7 +21,7 @@ where `G(v)` collects all the terms unrelated to `μᵥ` and thus contains the H
 By Ito's lemma, this equation can be rewritten as
 
 ```
-v G(v) = ∇v⋅(μₜXₜ) + ½ Tr[diag(ΣₜXₜ) * (H∘v) * diag(ΣₜXₜ)] + ∂v / ∂t.
+v G(v) = ∇v⋅(μₜXₜ) + ½ Tr[(ΣₜXₜ)ᵀ * (H∘v) * (ΣₜXₜ)] + ∂v / ∂t.
 ```
 
 Because this PDE is derived from an HJB,
@@ -52,6 +51,7 @@ It is also convenient to transform `dt` from `(0, ∞)` to `(0, 1)` by
 (diag(1 - Δ)  + Δ * (diag(G(vₙ)) - A)) vₙ₊₁ = (1 - Δ) (vₙ + b)
 ```
 """
+# TODO: Fix Σ² to take in a matrix and to not assume it has been squared already
 function pseudo_transient_relaxation(stategrid::StateGrid,
                                      value_functions::NTuple{N, T}, Gs::NTuple{N, T},
                                      μ::AbstractArray{S}, Σ²::AbstractArray{S}, Δ::S;
@@ -91,25 +91,35 @@ function _ptr_1D!(stategrid::StateGrid, new_value_functions::NTuple{N, T},
     # Set up finite differences and construct the infinitessimal generator
     x = values(stategrid.x)[1]
     n = length(stategrid)
-    dx = uniform ?  x[2] - x[1] : nonuniform_ghost_node_grid(stategrid, bc)
-    if isnothing(Q) # Assume reflecting boundaries,
-                    # typical case for models where the volatility vanishes at boundaries and drift point "inward"
-        Q = RobinBC((0., 1., 0.), (0., 1., 0.), dx)
-    end
-    concretization = banded ? BandedMatrix : sparse
-    if isnothing(L₁)
-        L₁ = UpwindDifference(1, 1, dx, n, fill(1., n)) # Filling coefficients can cause undefineds to be used in the concretization, reason unknown
-    end
-    L₁.coefficients .= μ .* x
-    L₁ = concretization(L₁ * Q)
-    L₂ = concretization((Σ² .* x.^2 ./ 2.) * (isnothing(L₂) ? CenteredDifference(2, 2, dx, n) : L₂) * Q)
+    dx = uniform ?  x[2] - x[1] : nonuniform_grid_spacing(stategrid, bc)
 
-    A = L₁[1] + L₂[1]
-    b = L₁[2] + L₂[2]
+    # If no DiffEqOperator objects are passed, then we assume the user wants a BandedMatrix w/first-order upwind first derivatives
+    # and second order central difference second derivatives. Reflecting boundaries are assumed.
+    if isnothing(Q) && isnothing(L₁) && isnothing(L₂)
+        # Set up the implicit time step
+        for (nvf, vf, G) in zip(new_value_functions, value_functions, Gs)
+            _default_ptr_1D!(nvf, vf, G, x, dx, n, μ, Σ², Δ)
+        end
+    else
+        if isnothing(Q) # Assume reflecting boundaries,
+            # typical case for models where the volatility vanishes at boundaries and drift point "inward"
+            Q = RobinBC((0., 1., 0.), (0., 1., 0.), dx)
+        end
+        concretization = banded ? BandedMatrix : sparse
+        if isnothing(L₁)
+            L₁ = UpwindDifference(1, 1, dx, n, fill(1., n)) # Filling coefficients can cause undefineds to be used in the concretization, reason unknown
+        end
+        L₁.coefficients .= μ .* x
+        L₁ = concretization(L₁ * Q)
+        L₂ = concretization((Σ² .* x.^2 ./ 2.) * (isnothing(L₂) ? CenteredDifference(2, 2, dx, n) : L₂) * Q)
 
-    # Set up the implicit time step
-    for (nvf, vf, G) in zip(new_value_functions, value_functions, Gs)
-        nvf .= (Diagonal((1 - Δ) .+ Δ .* G) - (Δ .* A)) \ ((1 - Δ) .* (vf + b))
+        A = L₁[1] + L₂[1]
+        b = L₁[2] + L₂[2]
+
+        # Set up the implicit time step
+        for (nvf, vf, G) in zip(new_value_functions, value_functions, Gs)
+            nvf .= (Diagonal((1 - Δ) .+ Δ .* G) - (Δ .* A)) \ ((1 - Δ) .* (vf + b))
+        end
     end
 
     return new_value_functions, value_functions
@@ -154,4 +164,55 @@ function upwind_parabolic_pde(X, R, μ, Σ², G, V, dt_div_1pdt)
     Acheck = spdiagm(0 => (1 - dt_div_1pdt) .* ones(N) + dt_div_1pdt .* R) - dt_div_1pdt .* (L1 + L2)=#
 
     return F
+end
+
+function _default_ptr_1D!(nvf::T, vf::T, G::T, x::AbstractVector{S},
+                          dx::AbstractVector{S}, n::Int, μ::AbstractVector{S}, Σ²::AbstractVector{S},
+                          Δ::S) where {N <: Int, T <: AbstractVector{<: Real}, S <: Real}
+
+    # Process Σ² matrix
+    Σ²in = similar(Σ²)
+    Σ²in[2:n - 1] .= Σ²[2:n - 1] .* x[2:n - 1].^2 ./  # In non-uniform case, for 2:n - 1, want to divide by the
+        (2 .* dx[1:n - 2] .* dx[2:n - 1])             # forward and backward difference, but for the boundaries,
+    Σ²in[1] = 0.                                      # we impose reflecting boundaries.
+    Σ²in[n] = 0.                                      # Note that dx is length (n + 1).
+
+    # Populate diagonals and construct BandedMatrix
+    μx = μ .* x
+    DU = -Δ .* (max.( μx[1:n - 1], 0.) ./ dx[2:n] + Σ²in[1:n - 1]) # up diagonal
+    DD = -Δ .* (max.(-μx[2:n],     0.) ./ dx[2:n] + Σ²in[2:n])     # down diagonal, note FD scheme makes DD negative, multiplied by negative drift ⇒ positive, then subtracted ⇒ negative
+
+    D0            = (1 - Δ) .+ Δ .* G
+    D0[1:n - 1] .-= DU
+    D0[2:n]     .-= DD
+
+    A = BandedMatrix(0 => D0, 1 => DU, -1 => DD)
+
+    # Solve linear system
+    nvf .= A \ ((1. - Δ) .* vf)
+end
+
+function _default_ptr_1D!(nvf::T, vf::T, G::T, x::AbstractVector{S},
+                          dx::S, n::Int, μ::AbstractVector{S}, Σ²::AbstractVector{S},
+                          Δ::S) where {N <: Int, T <: AbstractVector{<: Real}, S <: Real}
+
+    # Process Σ² matrix
+    Σ²in = similar(Σ²)                                           # In non-uniform case, for 2:n - 1, want to divide by the
+    Σ²in[2:n - 1] .= Σ²[2:n - 1] .* x[2:n - 1].^2 ./ (2 .* dx^2) # forward and backward difference, but for the boundaries,
+    Σ²in[1] = 0.                                                 # we impose reflecting boundaries.
+    Σ²in[n] = 0.                                                 # Note that dx is length (n + 1).
+
+    # Populate diagonals and construct BandedMatrix
+    μx = μ .* x
+    DU = -Δ .* (max.( μx[1:n - 1], 0.) ./ dx + Σ²in[1:n - 1]) # up diagonal
+    DD = -Δ .* (max.(-μx[2:n],     0.) ./ dx + Σ²in[2:n])     # down diagonal, note FD scheme makes DD negative, multiplied by negative drift ⇒ positive, then subtracted ⇒ negative
+
+    D0            = (1 - Δ) .+ Δ .* G
+    D0[1:n - 1] .-= DU
+    D0[2:n]     .-= DD
+
+    A = BandedMatrix(0 => D0, 1 => DU, -1 => DD)
+
+    # Solve linear system
+    nvf .= A \ ((1. - Δ) .* vf)
 end
