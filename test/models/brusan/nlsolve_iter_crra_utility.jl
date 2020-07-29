@@ -1,11 +1,11 @@
 using Pkg
 Pkg.activate(joinpath(dirname(@__FILE__), "../../../"))
-using Test, OrdinaryDiffEq, HDF5, ModelConstructors, Plots, NLsolve, Statistics
+using Test, OrdinaryDiffEq, HDF5, ModelConstructors, Plots, NLsolve, Statistics, BenchmarkTools
 include(joinpath(dirname(@__FILE__), "../../../src/includeall.jl"))
 
 start_time = time_ns()
 
-default = false
+default = true
 nlsolve_trustreg = false # slower than default by .3 seconds, plus 2 extra steps
 nlsolve_newton = true  # roughly save time as trustreg
 forwarddiff = false # Plus .6 seconds for newton, .75 for trust region
@@ -111,6 +111,10 @@ t_err_vec = fill(NaN, T)
 Δ_vec = fill(NaN, T)
 dobreak = Bool[false]
 Δ_vec[1:2] .= Δ
+@btime begin
+vₑ = aₑ^(-γ) .* η .^ (1. - γ)
+vₕ = aₑ^(-γ) .* (1. .- η) .^ (1. - γ)
+
 for t in 1:T
 
     ## Initialization
@@ -307,7 +311,7 @@ for t in 1:T
         vₕ .= vₕ₁
     end
 end
-
+end
 end_time = time_ns()
 
 elasped_time = (end_time - start_time) / 1e9
