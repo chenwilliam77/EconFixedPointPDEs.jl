@@ -175,7 +175,6 @@ function fixedpoint_timestep(F, vₑvₕ, η, dη, Q, Qp, Psi, SSQ, MU, S, Svₑ
         vₕ₁ .= upwind_parabolic_pde(η, Mvₕ, MU, S.^2, G, vₕ, Δ)
     end
 
-    dt              = Δ / (1 - Δ)
-    F[1:N]         .= (vₑ₁ - vₑ) ./ dt
-    F[(N + 1):end] .= (vₕ₁ - vₕ) ./ dt
+    F[1:N]         .= vₑ₁ - vₑ
+    F[(N + 1):end] .= vₕ₁ - vₕ
 end
