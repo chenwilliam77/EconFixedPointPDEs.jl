@@ -109,7 +109,7 @@ function _ptr_1D!(stategrid::StateGrid, new_value_functions::NTuple{N, T},
         if isnothing(L₁)
             L₁ = UpwindDifference(1, 1, dx, n, fill(1., n)) # Filling coefficients can cause undefineds to be used in the concretization, reason unknown
         end
-        L₁.coefficients[:] = μ .* x
+        L₁.coefficients .= μ .* x
         L₁ = concretization(L₁ * Q)
         L₂ = concretization((Σ² .* x.^2 ./ 2.) * (isnothing(L₂) ? CenteredDifference(2, 2, dx, n) : L₂) * Q)
 
@@ -118,7 +118,7 @@ function _ptr_1D!(stategrid::StateGrid, new_value_functions::NTuple{N, T},
 
         # Set up the implicit time step
         for (nvf, vf, G) in zip(new_value_functions, value_functions, Gs)
-            nvf[:] = (Diagonal((1 - Δ) .+ Δ .* G) - (Δ .* A)) \ ((1 - Δ) .* (vf + b))
+            nvf .= (Diagonal((1 - Δ) .+ Δ .* G) - (Δ .* A)) \ ((1 - Δ) .* (vf + b))
         end
     end
 
@@ -132,7 +132,7 @@ function upwind_parabolic_pde(X, R, μ, Σ², G, V, dt_div_1pdt)
 
     # Perform upwind scheme w/centered difference on diffusion term
     Σ²0 = zeros(N)
-    Σ²0[2:N-1] = Σ²[2:N-1] ./ (dX[1:N-2] + dX[2:N-1]) # approx Σ² / (2 * dx): this term is the Σ²/2 coefficient
+    Σ²0[2:N-1] .= Σ²[2:N-1] ./ (dX[1:N-2] + dX[2:N-1]) # approx Σ² / (2 * dx): this term is the Σ²/2 coefficient
     DU = -(max.(μ[1:N-1], 0.) + Σ²0[1:N-1]) ./ dX .* dt_div_1pdt # up diagonal, μ divided by dX, Σ²0 is Σ² / (2 * dx^2), th
     DD = -(max.(-μ[2:N], 0.) + Σ²0[2:N]) ./ dX .* dt_div_1pdt # down diagonal, note should be negative b/c FD scheme makes DD negative, multiplied by negative drift ⇒ positive, then subtracted ⇒ negative
     # observe: Σ² and μ are zero at endpoints, hence Σ²0 zero at endpts too ->
@@ -172,7 +172,7 @@ function _default_ptr_1D!(nvf::T, vf::T, G::T, x::AbstractVector{S},
 
     # Process Σ² matrix
     Σ²in = similar(Σ²)
-    Σ²in[2:n - 1] = Σ²[2:n - 1] .* x[2:n - 1].^2 ./   # In non-uniform case, for 2:n - 1, want to divide by the
+    Σ²in[2:n - 1] .= Σ²[2:n - 1] .* x[2:n - 1].^2 ./  # In non-uniform case, for 2:n - 1, want to divide by the
         (2 .* dx[1:n - 2] .* dx[2:n - 1])             # forward and backward difference, but for the boundaries,
     Σ²in[1] = 0.                                      # we impose reflecting boundaries.
     Σ²in[n] = 0.                                      # Note that dx is length (n + 1).
@@ -189,7 +189,7 @@ function _default_ptr_1D!(nvf::T, vf::T, G::T, x::AbstractVector{S},
     A = BandedMatrix(0 => D0, 1 => DU, -1 => DD)
 
     # Solve linear system
-    nvf[:] = A \ ((1. - Δ) .* vf)
+    nvf .= A \ ((1. - Δ) .* vf)
 end
 
 function _default_ptr_1D!(nvf::T, vf::T, G::T, x::AbstractVector{S},
@@ -198,7 +198,7 @@ function _default_ptr_1D!(nvf::T, vf::T, G::T, x::AbstractVector{S},
 
     # Process Σ² matrix
     Σ²in = similar(Σ²)                                           # In non-uniform case, for 2:n - 1, want to divide by the
-    Σ²in[2:n - 1] = Σ²[2:n - 1] .* x[2:n - 1].^2 ./ (2 .* dx^2)  # forward and backward difference, but for the boundaries,
+    Σ²in[2:n - 1] .= Σ²[2:n - 1] .* x[2:n - 1].^2 ./ (2 .* dx^2) # forward and backward difference, but for the boundaries,
     Σ²in[1] = 0.                                                 # we impose reflecting boundaries.
     Σ²in[n] = 0.                                                 # Note that dx is length (n + 1).
 
@@ -214,5 +214,5 @@ function _default_ptr_1D!(nvf::T, vf::T, G::T, x::AbstractVector{S},
     A = BandedMatrix(0 => D0, 1 => DU, -1 => DD)
 
     # Solve linear system
-    nvf[:] = A \ ((1. - Δ) .* vf)
+    nvf .= A \ ((1. - Δ) .* vf)
 end
