@@ -108,3 +108,41 @@ function nonuniform_grid_spacing(stategrid::StateGrid, bc::AbstractVector{Tuple{
         error("Not yet implemented")
     end
 end
+
+# Constructs the diagonals of a 2nd derivative 2nd order centered difference matrix with reflecting
+# boundary condition and the optional input of a coefficients vector.
+function _centered_difference_reflecting_bc_weights(order::Int, x::AbstractVector{S},
+                                                    coefs::AbstractVector{S} = Vector{S}(undef, 0)) where {S <: Real}
+
+    # Set up
+    N  = length(x)
+    D0 = Vector{S}(undef, N)
+    DU = Vector{S}(undef, N - 1)
+    DD = Vector{S}(undef, N - 1)
+
+    # Handle boundaries
+    # a0 * f0 + a2 * f2 = 0 ⇒ f0 = -(a2 / a0) f2
+    # If the ghost node is uniformly spaced, then a2 = -a0, hence f0 = f2.
+    # ⇒ ∂²f/∂x² ≈ b0 * f2 + b1 * f1 + b2 * f2 = b1 * f1 + (b0 + b2) * f2
+    b0, b1, b2 = DiffEqOperators.calculate_weights(order, x[1], [x[1] - (x[2] - x[1]), x[1], x[2]])
+    D0[1] = b1
+    DU[1] = (b0 + b2)
+    b0, b1, b2 = DiffEqOperators.calculate_weights(order, x[end], [x[end - 1], x[end], x[end] + (x[end] - x[end - 1])])
+    D0[end] = b1
+    DD[end] = (b0 + b2)
+
+    # Handle rest of diagonals
+    for i in 2:(N - 1)
+        DD[i - 1], D0[i], DU[i] = DiffEqOperators.calculate_weights(order, x[i], x[(i - 1):(i + 1)])
+    end
+
+
+    # Update with coefficients
+    if !isempty(coefs)
+        DD .*= coefs[2:N]
+        D0 .*= coefs
+        DU .*= coefs[1:(N - 1)]
+    end
+
+    return DD, D0, DU
+end

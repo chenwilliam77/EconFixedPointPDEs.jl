@@ -1,5 +1,16 @@
 """
 ```
+pseudo_transient_relaxation(stategrid::StateGrid, value_functions::NTuple{N, T}, Gs::NTuple{N, T},
+    μ::AbstractArray{S}, Σ²::AbstractArray{S}, Δ::S;
+    uniform::Bool = false, bc::Vector{Tuple{S, S}} = Vector{Tuple{T, T}}(undef, 0),
+    Q = nothing, banded::Bool = false) where {S <: Real, T <: AbstractArray{<: Real}, N}
+
+pseudo_transient_relaxation!(stategrid::StateGrid, new_value_functions::NTuple{N, T},
+    value_functions::NTuple{N, T}, Gs::NTuple{N, T},
+    μ::AbstractArray{S}, Σ²::AbstractArray{S}, Δ::S;
+    uniform::Bool = false, bc::Vector{Tuple{S, S}} = Vector{Tuple{S, S}}(undef, 0),
+    L₁ = nothing, L₂ = nothing, Q = nothing,
+    banded::Bool = false) where {S <: Real, T <: AbstractArray{<: Real}, N}
 ```
 
 The homogeneous diffusion must take the form
@@ -125,68 +136,28 @@ function _ptr_1D!(stategrid::StateGrid, new_value_functions::NTuple{N, T},
     return new_value_functions, value_functions
 end
 
-# Translation of code from Yuliy Sannikov, payoff_policy_growth, with the modification that instead of S, we plug in S²
-function upwind_parabolic_pde(X, R, μ, Σ², G, V, dt_div_1pdt)
-    N = length(X)
-    dX = diff(X)
-
-    # Perform upwind scheme w/centered difference on diffusion term
-    Σ²0 = zeros(N)
-    Σ²0[2:N-1] .= Σ²[2:N-1] ./ (dX[1:N-2] + dX[2:N-1]) # approx Σ² / (2 * dx): this term is the Σ²/2 coefficient
-    DU = -(max.(μ[1:N-1], 0.) + Σ²0[1:N-1]) ./ dX .* dt_div_1pdt # up diagonal, μ divided by dX, Σ²0 is Σ² / (2 * dx^2), th
-    DD = -(max.(-μ[2:N], 0.) + Σ²0[2:N]) ./ dX .* dt_div_1pdt # down diagonal, note should be negative b/c FD scheme makes DD negative, multiplied by negative drift ⇒ positive, then subtracted ⇒ negative
-    # observe: Σ² and μ are zero at endpoints, hence Σ²0 zero at endpts too ->
-    # boundary conditions for our PDE
-
-    D0 = (1 - dt_div_1pdt) .* ones(N) + dt_div_1pdt .* R # diagonal
-    D0[1:N-1] = D0[1:N-1] - DU
-    D0[2:N] = D0[2:N] - DD # subtract twice b/c centered diff
-    A = spdiagm(0 => D0, 1 => DU, -1 => DD) # + spdiagm(DU,1,N,N) + spdiagm(DD[1:N-1],-1,N,N)
-    F = A \ (G .* dt_div_1pdt + V .* (1 - dt_div_1pdt)) # solve linear system
-
-#=    # Equivalent to this code, which constructs the first and second finite difference matrices separately
-    DU1 = zeros(N)
-    DU2 = zeros(N)
-    DD1 = zeros(N)
-    DD2 = zeros(N)
-    D01 = zeros(N)
-    D02 = zeros(N)
-    DU1[2:N] = max.(μ[1:N - 1], 0.) ./ dX
-    DU2[2:N] = Σ²0[1:N - 1] ./ dX
-    DD1[1:N - 1] = max.(-μ[2:N], 0.) ./ dX
-    DD2[1:N - 1] = Σ²0[2:N] ./ dX
-    D01[1:N - 1] .= -DU1[2:N]
-    D01[2:N] .-= DD1[1:N - 1]
-    D02[1:N - 1] .= -DU2[2:N]
-    D02[2:N] .-= DD2[1:N - 1]
-    L1 = spdiagm(0 => D01, -1 => DD1[1:N - 1], 1 => DU1[2:N])
-    L2 = spdiagm(0 => D02, -1 => DD2[1:N - 1], 1 => DU2[2:N])
-    Acheck = spdiagm(0 => (1 - dt_div_1pdt) .* ones(N) + dt_div_1pdt .* R) - dt_div_1pdt .* (L1 + L2)=#
-
-    return F
-end
-
 function _default_ptr_1D!(nvf::T, vf::T, G::T, x::AbstractVector{S},
                           dx::AbstractVector{S}, n::Int, μ::AbstractVector{S}, Σ²::AbstractVector{S},
                           Δ::S) where {N <: Int, T <: AbstractVector{<: Real}, S <: Real}
 
     # Process Σ² matrix
     Σ²in = similar(Σ²)
-    Σ²in[2:n - 1] .= Σ²[2:n - 1] .* x[2:n - 1].^2 ./  # In non-uniform case, for 2:n - 1, want to divide by the
-        (2 .* dx[1:n - 2] .* dx[2:n - 1])             # forward and backward difference, but for the boundaries,
-    Σ²in[1] = 0.                                      # we impose reflecting boundaries.
-    Σ²in[n] = 0.                                      # Note that dx is length (n + 1).
+    Σ²in[2:n - 1] .= Σ²[2:n - 1] .* x[2:n - 1].^2 ./ 2. # In non-uniform case, we utilize Fornberg weights, so just calculate
+    Σ²in[1] = 0.                                        # the raw coeficients.
+    Σ²in[n] = 0.
 
     # Populate diagonals and construct BandedMatrix
-    μx = μ .* x
-    DU = -Δ .* (max.( μx[1:n - 1], 0.) ./ dx[2:n] + Σ²in[1:n - 1]) # up diagonal
-    DD = -Δ .* (max.(-μx[2:n],     0.) ./ dx[2:n] + Σ²in[2:n])     # down diagonal, note FD scheme makes DD negative, multiplied by negative drift ⇒ positive, then subtracted ⇒ negative
+    DD, D0, DU = _centered_difference_reflecting_bc_weights(2, x, -Δ .* Σ²in) # Initialize diagonals for centered difference operator
+    μx         = μ .* x
+    DU       .-= Δ .* (max.( μx[1:n - 1], 0.) ./ dx[1:n - 1]) # up diagonal
+    DD       .-= Δ .* (max.(-μx[2:n],     0.) ./ dx[2:n])     # down diagonal, note FD scheme makes DD negative, multiplied by negative drift ⇒ positive, then subtracted ⇒ negative
 
-    D0            = (1 - Δ) .+ Δ .* G
-    D0[1:n - 1] .-= DU
-    D0[2:n]     .-= DD
+    D0          .+= (1 - Δ) .+ Δ .* G
+    D0[1:n - 1] .+= Δ .* (max.( μx[1:n - 1], 0.) ./ dx[1:n - 1]) # Also have to add to the main diagonal
+    D0[2:n]     .+= Δ .* (max.(-μx[2:n],     0.) ./ dx[2:n])     # for the first-order FD operator
 
-    A = BandedMatrix(0 => D0, 1 => DU, -1 => DD)
+    A             = BandedMatrix(0 => D0, 1 => DU, -1 => DD)
+
 
     # Solve linear system
     nvf .= A \ ((1. - Δ) .* vf)
