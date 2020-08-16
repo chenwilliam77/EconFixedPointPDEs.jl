@@ -112,24 +112,67 @@ function _ptr_1D!(stategrid::StateGrid, new_value_functions::NTuple{N, T},
             _default_ptr_1D!(nvf, vf, G, x, dx, n, μ, Σ², Δ)
         end
     else
+        if banded
+            # Calculate number of diagonals for BandedMatrix representation
+            L₁_n_offdiags = if isnothing(L₁)
+                # first order upwinded by default
+                1
+            elseif typeof(L₁.parameters)[3] || L₁.approximation_order > 2
+                # If upwinded, need diagonals for stencil length (minus 0th diagonal) on both sides of 0th diagonal
+                # If CenteredDifference, approximation order > 2, need whole stencil length for boundaries,
+                # and subtract 1 to not double count 0th diagonal
+                L₁.stencil_length - 1
+            elseif L₁.approximation_order == 2 # CenteredDifference, approximation order = 2
+                1 # just need 1st upper and lower diagonals, plus main diagonal b/c handling boundary values
+            end
+            L₂_n_offdiags = if isnothing(L₂) # see CenteredDifference cases of L₁_ndiags
+                1
+            elseif L₂.approximation_order == 2
+                1
+            else
+                L₂.stencil_length - 1
+            end
+        end
+
         if isnothing(Q) # Assume reflecting boundaries,
             # typical case for models where the volatility vanishes at boundaries and drift point "inward"
             Q = RobinBC((0., 1., 0.), (0., 1., 0.), dx)
         end
-        concretization = banded ? BandedMatrix : sparse
         if isnothing(L₁)
-            L₁ = UpwindDifference(1, 1, dx, n, fill(1., n)) # Filling coefficients can cause undefineds to be used in the concretization, reason unknown
+            # Filling coefficients inside this function can cause undefineds to be used in the concretization, reason unknown
+            L₁ = UpwindDifference(1, 1, dx, n, ones(n)) # So just use 1s first
         end
         L₁.coefficients .= μ .* x
-        L₁ = concretization(L₁ * Q)
-        L₂ = concretization((Σ² .* x.^2 ./ 2.) * (isnothing(L₂) ? CenteredDifference(2, 2, dx, n) : L₂) * Q)
-
-        A = L₁[1] + L₂[1]
-        b = L₁[2] + L₂[2]
+        L₁ = sparse(L₁ * Q)
+        L₂ = sparse((Σ² .* x.^2 ./ 2.) * (isnothing(L₂) ? CenteredDifference(2, 2, dx, n) : L₂) * Q)
 
         # Set up the implicit time step
-        for (nvf, vf, G) in zip(new_value_functions, value_functions, Gs)
-            nvf .= (Diagonal((1 - Δ) .+ Δ .* G) - (Δ .* A)) \ ((1 - Δ) .* (vf + b))
+        if banded
+            # Currently, BandedMatrix concretization doesn't work for GhostDerivativeOperator,
+            # so form the BandedMatrix from the sparse concretization. The hope is that time is
+            # saved during the left divide step.
+            min_n_offdiags = min(L₁_n_offdiags, L₂_n_offdiags)
+            diags_dict = Dict(i => diag(L₁[1], i) + diag(L₂[1], i) for i in 1:min_n_offdiags)
+            for i in -min_n_offdiags:-1
+                diags_dict[i] = -Δ * (diag(L₁[1], i) + diag(L₂[1], i)) # multiplied by -Δ here to obtain further speed up
+            end
+            orig_0th_diag = -Δ .* (Array(diag(L₁[1], 0)) + Array(diag(L₂[1], 0))) # Handle 0th diagonal separately b/c will add terms
+            diags_dict[0] = similar(orig_0th_diag)                                # Also convert them to Array rather than SparseVector
+
+            for (nvf, vf, G) in zip(new_value_functions, value_functions, Gs)
+                diags_dict[0] .= (1 - Δ) .+ Δ .* G + orig_0th_diag # add nonlinear terms to main diagonal
+                A = BandedMatrix(diags_dict...)
+
+                # nvf .= A \ (1. - Δ) .* (vf + b)
+                ldiv!(nvf, qr(A), (1. - Δ) .* (vf + b)) # Typically faster b/c fewer allocations, qr also faster than factorize/cholesky
+            end
+        else
+            A = L₁[1] + L₂[1]
+            b = L₁[2] + L₂[2]
+
+            for (nvf, vf, G) in zip(new_value_functions, value_functions, Gs)
+                nvf .= (Diagonal((1 - Δ) .+ Δ .* G) - (Δ .* A)) \ ((1 - Δ) .* (vf + b))
+            end
         end
     end
 
@@ -160,7 +203,8 @@ function _default_ptr_1D!(nvf::T, vf::T, G::T, x::AbstractVector{S},
 
 
     # Solve linear system
-    nvf .= A \ ((1. - Δ) .* vf)
+    # nvf .= A \ ((1. - Δ) .* vf)
+    ldiv!(nvf, qr(A), (1. - Δ) .* vf) # Typically faster b/c fewer allocations, qr also faster than factorize/cholesky
 end
 
 function _default_ptr_1D!(nvf::T, vf::T, G::T, x::AbstractVector{S},
@@ -185,5 +229,6 @@ function _default_ptr_1D!(nvf::T, vf::T, G::T, x::AbstractVector{S},
     A = BandedMatrix(0 => D0, 1 => DU, -1 => DD)
 
     # Solve linear system
-    nvf .= A \ ((1. - Δ) .* vf)
+    # nvf .= A \ ((1. - Δ) .* vf)
+    ldiv!(nvf, qr(A), (1. - Δ) .* vf) # Typically faster b/c fewer allocations, qr also faster than factorize/cholesky
 end
