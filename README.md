@@ -6,7 +6,7 @@ developed by [Li, Wenhao (2020)
 The key problem is that with jump diffusions the Hamilton-Jacobi-Bellman equation becomes an integro-differential equation.
 Li (2020) handles this problem with tempered fixed-point iteration.
 The method, however, requires log utility for agents. To extend the method for more general preferences and models,
-I plan to use pseudo-transient continuation as the proposal method for the next guess of value functions in the
+I plan to use pseudo-transient relaxation as the proposal method for the next guess of value functions in the
 tempered fixed-point iteration.
 
 
