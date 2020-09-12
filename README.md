@@ -1,4 +1,4 @@
-# EconFixedPointPDEs
+# EconFixedPointPDEs.jl
 This repository aims to extend [EconPDEs.jl](https://github.com/matthieugomez/EconPDEs.jl) to permit jump diffusions
 in endogenous state variables by applying pseudo-transient continuation to the value function iteration method
 developed by [Li, Wenhao (2020)
